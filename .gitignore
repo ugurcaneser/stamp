@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.venv/
+dist/
+*.deb
+.pytest_cache/

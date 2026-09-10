@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+  <vendor>Stamp</vendor>
+  <vendor_url>https://example.org/stamp</vendor_url>
+
+  <action id="org.example.stamp.format-fat32">
+    <description>Partition and format a removable card as FAT32</description>
+    <message>Authentication is required to partition and format the selected removable device as FAT32</message>
+    <icon_name>drive-removable-media</icon_name>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <!-- Ties this action to exactly one program path, so pkexec shows the
+         message above instead of the generic "run a program as root"
+         prompt. Must match core/formatter.py's _INSTALLED_HELPER_PATH and
+         where build-deb.sh installs helper/stamp-helper. -->
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/lib/stamp/stamp-helper</annotate>
+  </action>
+</policyconfig>

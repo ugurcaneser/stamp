@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Stamp
+Comment=Format an SD card as FAT32 and load a zip's contents onto it
+Exec=stamp
+Icon=drive-removable-media
+Terminal=false
+Categories=Utility;System;
+StartupNotify=true

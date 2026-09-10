@@ -1,0 +1,95 @@
+#!/bin/bash
+#
+# stamp-helper — the ONLY part of Stamp that runs as root.
+#
+# Invoked as: pkexec /usr/lib/stamp/stamp-helper format-fat32 <device> <label>
+#
+# Deliberately tiny and auditable: one whitelisted subcommand, strict input
+# validation, no shell interpolation of user-controlled strings into anything
+# that reaches a shell, no other subcommands, no reading of arbitrary files.
+# Everything else Stamp does (unmount, mount, enumerate devices, extract zips,
+# copy files) runs as the invoking user and never needs this script.
+#
+# This script re-validates its inputs independently of the Python caller
+# (core/formatter.py) — never assume the caller already checked, since this
+# script is reachable directly via pkexec by anything on the system.
+
+set -euo pipefail
+
+fail() {
+    echo "stamp-helper: $*" >&2
+    exit 1
+}
+
+[ "$(id -u)" -eq 0 ] || fail "must run as root (invoke via pkexec)"
+
+SUBCOMMAND="${1:-}"
+DEVICE="${2:-}"
+LABEL="${3:-}"
+
+[ "$SUBCOMMAND" = "format-fat32" ] || fail "unknown subcommand: $SUBCOMMAND"
+
+# Whole-disk device paths only — /dev/sdX, /dev/mmcblkN, /dev/nvmeXnY.
+# No partition suffix accepted: this command creates the partition itself.
+case "$DEVICE" in
+    /dev/sd[a-z] | /dev/sd[a-z][a-z]) ;;
+    /dev/mmcblk[0-9]) ;;
+    /dev/mmcblk[0-9][0-9]) ;;
+    /dev/nvme[0-9]n[0-9]) ;;
+    /dev/nvme[0-9][0-9]n[0-9]) ;;
+    *) fail "refusing to operate on '$DEVICE': does not look like a whole-disk device path" ;;
+esac
+
+[ -b "$DEVICE" ] || fail "'$DEVICE' is not a block device"
+
+# Refuse the disk backing the running system's root filesystem, even if
+# something upstream of us got that wrong. Resolve through a partition to
+# its parent disk, same logic as core/safety.py.
+ROOT_SOURCE="$(findmnt -no SOURCE / 2>/dev/null || true)"
+if [ -n "$ROOT_SOURCE" ] && [[ "$ROOT_SOURCE" == /dev/* ]]; then
+    ROOT_PKNAME="$(lsblk -no PKNAME "$ROOT_SOURCE" 2>/dev/null || true)"
+    ROOT_DISK="${ROOT_PKNAME:+/dev/$ROOT_PKNAME}"
+    ROOT_DISK="${ROOT_DISK:-$ROOT_SOURCE}"
+    if [ "$ROOT_DISK" = "$DEVICE" ]; then
+        fail "refusing to operate on '$DEVICE': it backs the running system's root filesystem"
+    fi
+fi
+
+# Volume label: sanitized further even though the Python caller already did
+# this (core/formatter.py:sanitize_label) — defense in depth. FAT32 labels
+# are at most 11 characters from a limited charset.
+LABEL="$(echo "$LABEL" | tr -cd 'A-Za-z0-9 _-' | cut -c1-11)"
+[ -n "$LABEL" ] || LABEL="STAMP"
+
+command -v parted >/dev/null || fail "parted is not installed"
+command -v mkfs.vfat >/dev/null || fail "mkfs.vfat (dosfstools) is not installed"
+command -v partprobe >/dev/null || fail "partprobe is not installed"
+
+echo "stamp-helper: unmounting any partitions still mounted on $DEVICE..."
+for part in "$DEVICE"?*; do
+    [ -b "$part" ] || continue
+    umount "$part" 2>/dev/null || true
+done
+
+echo "stamp-helper: creating a fresh MBR partition table on $DEVICE..."
+parted -s "$DEVICE" mklabel msdos
+parted -s "$DEVICE" mkpart primary fat32 1MiB 100%
+parted -s "$DEVICE" set 1 lba on
+partprobe "$DEVICE"
+
+# Give the kernel a moment to register the new partition node.
+for _ in $(seq 1 20); do
+    case "$DEVICE" in
+        *[0-9]) PARTITION="${DEVICE}p1" ;;
+        *) PARTITION="${DEVICE}1" ;;
+    esac
+    [ -b "$PARTITION" ] && break
+    sleep 0.25
+done
+[ -b "$PARTITION" ] || fail "partition $PARTITION did not appear after partitioning $DEVICE"
+
+echo "stamp-helper: formatting $PARTITION as FAT32 (forced, regardless of card size)..."
+mkfs.vfat -F 32 -n "$LABEL" "$PARTITION"
+
+sync
+echo "stamp-helper: done. $PARTITION is FAT32, label '$LABEL'."
