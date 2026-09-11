@@ -1,10 +1,10 @@
 Package: stamp
-Version: 1.0.1
+Version: 1.0.2
 Section: utils
 Priority: optional
 Architecture: all
 Maintainer: Stamp Maintainers <noreply@example.org>
-Depends: python3 (>= 3.10), python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, gir1.2-udisks-2.0, policykit-1 | polkitd-pkexec, udisks2, parted, dosfstools, rsync, util-linux
+Depends: python3 (>= 3.10), python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, gir1.2-udisks-2.0, pkexec | policykit-1, polkitd | policykit-1, udisks2, parted, dosfstools, rsync, util-linux
 Description: Format an SD card as FAT32 (any size) and load a zip's contents onto it
  Stamp formats a removable SD card or USB drive as FAT32, explicitly
  supporting cards larger than 32GB (which most stock GUI formatters

@@ -12,8 +12,8 @@ was built from, and `ARCHITECTURE.md` for the privilege-separation design.
 ## Install
 
 ```sh
-./packaging/build-deb.sh          # writes dist/stamp_1.0.1_all.deb
-sudo apt install ./dist/stamp_1.0.1_all.deb
+./packaging/build-deb.sh          # writes dist/stamp_1.0.2_all.deb
+sudo apt install ./dist/stamp_1.0.2_all.deb
 ```
 
 ## Run
