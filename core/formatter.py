@@ -73,7 +73,7 @@ def default_unmount_all(device: Device) -> None:
     except (ImportError, ValueError) as exc:
         raise FormatError(
             "udisks2 GObject-introspection bindings are not available "
-            "(install gir1.2-udisks2 on the target Ubuntu machine)"
+            "(install gir1.2-udisks-2.0 on the target Ubuntu machine)"
         ) from exc
 
     client = UDisks.Client.new_sync(None)
