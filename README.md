@@ -33,8 +33,8 @@ confirmation prompt for scripting, `--allow-non-removable` to override the
 - The disk backing `/` (or any disk with a partition mounted at `/`,
   `/boot`, `/home`, `/var`, `/usr`, `/etc`, `/opt`, `/srv`) is never listed
   and can never be selected, with no override.
-- Formatting uses one concise summary dialog. The "Format & Copy" button stays
-  disabled until the user acknowledges that the selected device will be erased.
+- Formatting uses one concise summary dialog with a destructive "Format & Copy"
+  action; removable devices do not require an additional erase acknowledgement.
 - A device not flagged removable adds one explicit risk checkbox to that same
   dialog; it does not add another popup. Root/system disks remain blocked.
 - Every device/zip choice, command run, and outcome is logged to

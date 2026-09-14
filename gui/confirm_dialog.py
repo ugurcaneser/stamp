@@ -1,9 +1,9 @@
 """A concise destructive-action confirmation dialog (§4.5).
 
 The selected device and archive are summarized in one place. Removable drives
-need one erase acknowledgement; devices not flagged removable need one extra
-risk acknowledgement in the same dialog. No destructive action can occur
-before the enabled "Format & Copy" response is pressed.
+can proceed immediately; devices not flagged removable need one risk
+acknowledgement in the same dialog. No destructive action can occur before the
+"Format & Copy" response is pressed.
 """
 
 from __future__ import annotations
@@ -54,17 +54,13 @@ class ConfirmDialog(Adw.MessageDialog):
         self.set_response_appearance("format", Adw.ResponseAppearance.DESTRUCTIVE)
         self.set_default_response("cancel")
         self.set_close_response("cancel")
-        self.set_response_enabled("format", False)
 
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         content.set_margin_top(8)
 
-        self._checkbox = Gtk.CheckButton(label=f"Erase all data on {device.path}")
-        self._checkbox.connect("toggled", self._update_can_confirm)
-        content.append(self._checkbox)
-
         self._non_removable_checkbox: Gtk.CheckButton | None = None
         if not device.removable:
+            self.set_response_enabled("format", False)
             self._non_removable_checkbox = Gtk.CheckButton(
                 label="Use this device even though it is not marked removable"
             )
@@ -75,12 +71,8 @@ class ConfirmDialog(Adw.MessageDialog):
         self.connect("response", self._on_response)
 
     def _update_can_confirm(self, *_args) -> None:
-        erase_confirmed = self._checkbox.get_active()
-        device_confirmed = (
-            self._non_removable_checkbox is None
-            or self._non_removable_checkbox.get_active()
-        )
-        self.set_response_enabled("format", erase_confirmed and device_confirmed)
+        assert self._non_removable_checkbox is not None
+        self.set_response_enabled("format", self._non_removable_checkbox.get_active())
 
     def _on_response(self, _dialog: Adw.MessageDialog, response: str) -> None:
         self._on_result(response == "format")
