@@ -88,8 +88,8 @@ functions the GUI uses, and it required zero changes to `core/`.
   used for `tests/`), but constructed and driven directly against a real
   GTK4 4.22 / libadwaita 1.9 runtime (installed via Homebrew for this
   development session) — `DevicePicker` device list rendering and selection
-  signals, zip loading and format-button gating, `ConfirmDialog`'s
-  checkbox+text-match gating, the non-removable override dialog, and the
+  signals, zip loading and format-button gating, `ConfirmDialog`'s erase
+  acknowledgement, the non-removable risk acknowledgement, and the
   full background-worker call order (`format → extract → mount → copy →
   sync → unmount`, with mocked `core` calls) were all exercised directly and
   behaved as intended. What's *not* verified: real GNOME window-manager

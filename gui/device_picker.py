@@ -136,7 +136,7 @@ class DevicePicker(Gtk.Box):
 
         if not device.removable:
             warn_icon = Gtk.Image.new_from_icon_name("dialog-warning-symbolic")
-            warn_icon.set_tooltip_text("Not flagged as removable — extra confirmation required")
+            warn_icon.set_tooltip_text("Not marked as removable")
             row.add_suffix(warn_icon)
 
         return row

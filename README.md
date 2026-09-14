@@ -33,12 +33,10 @@ confirmation prompt for scripting, `--allow-non-removable` to override the
 - The disk backing `/` (or any disk with a partition mounted at `/`,
   `/boot`, `/home`, `/var`, `/usr`, `/etc`, `/opt`, `/srv`) is never listed
   and can never be selected, with no override.
-- A device not flagged removable requires an explicit, separate
-  acknowledgement dialog before it can even reach the main confirm step.
-- The final format step requires BOTH ticking "I understand this erases
-  everything on this device" AND typing the exact device path
-  (e.g. `/dev/sdb`) — the "Format & Copy" button stays disabled until both
-  match. Nothing destructive happens before that button is pressed.
+- Formatting uses one concise summary dialog. The "Format & Copy" button stays
+  disabled until the user acknowledges that the selected device will be erased.
+- A device not flagged removable adds one explicit risk checkbox to that same
+  dialog; it does not add another popup. Root/system disks remain blocked.
 - Every device/zip choice, command run, and outcome is logged to
   `~/.local/state/stamp/stamp.log`.
 

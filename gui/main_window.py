@@ -21,7 +21,7 @@ from core.formatter import DEFAULT_LABEL, FormatError
 from core.models import Device, human_size
 from core.safety import SafetyError
 
-from gui.confirm_dialog import ConfirmDialog, confirm_non_removable_override
+from gui.confirm_dialog import ConfirmDialog
 from gui.device_picker import DevicePicker
 from gui.progress_view import ProgressView
 
@@ -34,8 +34,6 @@ class MainWindow(Adw.ApplicationWindow):
 
         self._zip_path: str | None = None
         self._zip_preview: ZipPreview | None = None
-        self._non_removable_override_granted = False
-
         toolbar_view = Adw.ToolbarView()
         header = Adw.HeaderBar()
         toolbar_view.add_top_bar(header)
@@ -97,7 +95,6 @@ class MainWindow(Adw.ApplicationWindow):
         self._device_picker.start_auto_refresh()
 
     def _on_device_selected(self, _picker: DevicePicker, device: Device | None) -> None:
-        self._non_removable_override_granted = False
         self._update_format_button_sensitivity()
 
     def _on_choose_zip_clicked(self, _button: Gtk.Button) -> None:
@@ -160,26 +157,16 @@ class MainWindow(Adw.ApplicationWindow):
             return
 
         root_disk = self._device_picker.root_disk_path or ""
+        allow_override = not device.removable
         check = safety.evaluate_device_safety(
-            device, root_disk, allow_non_removable_override=self._non_removable_override_granted
+            device, root_disk, allow_non_removable_override=allow_override
         )
         if not check.ok:
-            if check.requires_override and not self._non_removable_override_granted:
-                confirm_non_removable_override(self, device, self._on_non_removable_decision)
-                return
             self._error_banner.set_title("; ".join(check.blocking_reasons))
             self._error_banner.set_revealed(True)
             return
 
         self._open_confirm_dialog(device)
-
-    def _on_non_removable_decision(self, granted: bool) -> None:
-        if not granted:
-            return
-        self._non_removable_override_granted = True
-        device = self._device_picker.selected_device
-        if device is not None:
-            self._open_confirm_dialog(device)
 
     def _open_confirm_dialog(self, device: Device) -> None:
         assert self._zip_path is not None and self._zip_preview is not None
@@ -190,14 +177,13 @@ class MainWindow(Adw.ApplicationWindow):
             self._zip_preview,
             self._label_row.get_text(),
             on_result=lambda confirmed: self._on_confirm_result(confirmed, device),
-            non_removable_override_already_granted=self._non_removable_override_granted,
         )
         dialog.present()
 
     def _on_confirm_result(self, confirmed: bool, device: Device) -> None:
         if not confirmed:
             return
-        self._start_prepare_flow(device)
+        self._start_prepare_flow(device, allow_override=not device.removable)
 
     # --- progress page + background worker --------------------------------------------
 
@@ -219,13 +205,11 @@ class MainWindow(Adw.ApplicationWindow):
         self._stack.set_visible_child_name("select")
         self._device_picker.refresh()
 
-    def _start_prepare_flow(self, device: Device) -> None:
+    def _start_prepare_flow(self, device: Device, allow_override: bool) -> None:
         assert self._zip_path is not None
         zip_path = self._zip_path
         label = self._label_row.get_text()
         root_disk = self._device_picker.root_disk_path or ""
-        allow_override = self._non_removable_override_granted
-
         self._progress_view.reset()
         self._start_over_button.set_visible(False)
         self._stack.set_visible_child_name("progress")
