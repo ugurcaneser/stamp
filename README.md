@@ -48,9 +48,15 @@ what's covered.
 ## Development
 
 ```sh
-python3 -m venv .venv && .venv/bin/pip install pytest
-PYTHONPATH=. .venv/bin/pytest tests/ -v
+python3 -m venv .venv
+.venv/bin/pip install -r requirements-dev.txt
+.venv/bin/pytest -v
 ```
+
+Pytest configuration lives in `pyproject.toml`, so tests resolve the local
+packages without a manually-set `PYTHONPATH`. GitHub Actions runs the suite on
+Python 3.10 (Ubuntu 22.04's baseline) and Python 3.12 (Ubuntu 24.04's baseline),
+checks Python and shell syntax, and verifies that the `.deb` can be built.
 
 `core/` has no GTK imports and is fully unit-testable without a display —
 device/lsblk parsing and safety logic are tested against mocked
