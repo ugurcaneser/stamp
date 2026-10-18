@@ -13,8 +13,8 @@ this was built from, and `ARCHITECTURE.md` for the privilege-separation design.
 ## Install
 
 ```sh
-./packaging/build-deb.sh          # writes dist/stamp_1.3.0_all.deb
-sudo apt install ./dist/stamp_1.3.0_all.deb
+./packaging/build-deb.sh          # writes dist/stamp_1.4.0_all.deb
+sudo apt install ./dist/stamp_1.4.0_all.deb
 ```
 
 ## Run
@@ -88,7 +88,7 @@ A native SwiftUI app with the same flow and safety rules, in `macos/` (a
 Swift package: `StampCore` library, `Stamp` app, `StampCoreTests`).
 
 A signed, notarized `Stamp-<version>.dmg` is attached to each GitHub release
-from v1.3.0 on.
+from v1.4.0 on.
 
 ```sh
 swift test --package-path macos            # unit tests
