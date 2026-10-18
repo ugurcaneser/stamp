@@ -9,7 +9,7 @@ public enum StampLog {
     public static let fileURL: URL = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent("Library/Logs/Stamp/stamp.log")
 
-    private static let logger = Logger(subsystem: "org.example.stamp", category: "stamp")
+    private static let logger = Logger(subsystem: "com.ugurcaneser.stamp", category: "stamp")
     private static let lock = NSLock()
 
     public static func info(_ message: String) { write("INFO", message) }
