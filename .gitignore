@@ -4,3 +4,4 @@ __pycache__/
 dist/
 *.deb
 .pytest_cache/
+.claude/settings.local.json
