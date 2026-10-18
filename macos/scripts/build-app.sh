@@ -37,6 +37,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/Stamp" "$APP/Contents/MacOS/Stamp"
 sed "s/__VERSION__/${VERSION}/g" "$PACKAGE_DIR/Resources/Info.plist" > "$APP/Contents/Info.plist"
 plutil -lint -s "$APP/Contents/Info.plist"
+cp "$PACKAGE_DIR/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 
 # Hardened runtime + secure timestamp are what notarization requires; ad-hoc
 # signatures can't carry a timestamp.

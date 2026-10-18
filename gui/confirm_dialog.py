@@ -3,7 +3,7 @@
 The selected device and archive are summarized in one place. Removable drives
 can proceed immediately; devices not flagged removable need one risk
 acknowledgement in the same dialog. No destructive action can occur before the
-"Format & Copy" response is pressed.
+"Erase & Copy" response is pressed.
 """
 
 from __future__ import annotations
@@ -18,11 +18,12 @@ gi.require_version("Adw", "1")
 from gi.repository import Adw, Gtk  # noqa: E402
 
 from core.content_writer import ZipPreview
+from core.formatter import sanitize_label
 from core.models import Device, human_size
 
 
 class ConfirmDialog(Adw.MessageDialog):
-    """The single "Format & Copy" gate for destructive work."""
+    """The single "Erase & Copy" gate for destructive work."""
 
     def __init__(
         self,
@@ -34,23 +35,25 @@ class ConfirmDialog(Adw.MessageDialog):
         on_result: Callable[[bool], None],
     ) -> None:
         body_lines = [
-            f"{device.path}  ·  {device.size_human}  ·  {device.display_model}",
-            f"{os.path.basename(zip_path)}  ·  "
+            "Everything on this card will be deleted.",
+            "",
+            f"Card: {device.display_model}  ·  {device.size_human}  ·  {device.path}",
+            f"Zip: {os.path.basename(zip_path)}  ·  "
             f"{preview.file_count} files  ·  {human_size(preview.uncompressed_size_bytes)}",
-            f"FAT32 label: {label or 'STAMP'}",
+            f"Name: {sanitize_label(label)}",
         ]
 
         super().__init__(
             transient_for=parent,
             modal=True,
-            heading=f"Format {device.path}?",
+            heading=f"Erase {device.display_model}?",
             body="\n".join(body_lines),
         )
 
         self._on_result = on_result
 
         self.add_response("cancel", "Cancel")
-        self.add_response("format", "Format & Copy")
+        self.add_response("format", "Erase & Copy")
         self.set_response_appearance("format", Adw.ResponseAppearance.DESTRUCTIVE)
         self.set_default_response("cancel")
         self.set_close_response("cancel")

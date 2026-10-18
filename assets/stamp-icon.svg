@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3D7BFF"/>
+      <stop offset="1" stop-color="#1F4FD8"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#E9EEF8"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#0A2470" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  <g filter="url(#shadow)">
+    <path d="M330 250 H600 L694 344 V744 Q694 774 664 774 H330 Q300 774 300 744 V280 Q300 250 330 250 Z" fill="url(#card)"/>
+  </g>
+  <g fill="#BFD0F5">
+    <rect x="360" y="300" width="34" height="96" rx="10"/>
+    <rect x="418" y="300" width="34" height="96" rx="10"/>
+    <rect x="476" y="300" width="34" height="96" rx="10"/>
+    <rect x="534" y="300" width="34" height="96" rx="10"/>
+  </g>
+  <g transform="rotate(-12 640 660)" filter="url(#shadow)">
+    <circle cx="640" cy="660" r="150" fill="#FF5A4E"/>
+    <circle cx="640" cy="660" r="118" fill="none" stroke="#FFFFFF" stroke-width="14" stroke-opacity="0.9"/>
+    <path d="M582 664 L624 706 L704 618" fill="none" stroke="#FFFFFF" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

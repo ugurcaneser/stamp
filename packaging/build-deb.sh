@@ -46,8 +46,13 @@ exec python3 /usr/lib/stamp/launcher.py "$@"
 EOF
 chmod 0755 "$PKG_ROOT/usr/bin/stamp"
 
+# The desktop file and icon are named after the GTK application ID so GNOME
+# matches the running window to them.
 mkdir -p "$PKG_ROOT/usr/share/applications"
-cp "$SCRIPT_DIR/stamp.desktop" "$PKG_ROOT/usr/share/applications/stamp.desktop"
+cp "$SCRIPT_DIR/com.ugurcaneser.Stamp.desktop" "$PKG_ROOT/usr/share/applications/com.ugurcaneser.Stamp.desktop"
+
+mkdir -p "$PKG_ROOT/usr/share/icons/hicolor/scalable/apps"
+cp "$PROJECT_ROOT/assets/stamp-icon.svg" "$PKG_ROOT/usr/share/icons/hicolor/scalable/apps/com.ugurcaneser.Stamp.svg"
 
 mkdir -p "$PKG_ROOT/usr/share/polkit-1/actions"
 cp "$SCRIPT_DIR/org.example.stamp.policy" "$PKG_ROOT/usr/share/polkit-1/actions/org.example.stamp.policy"

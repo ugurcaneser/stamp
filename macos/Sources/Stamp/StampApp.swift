@@ -10,7 +10,7 @@ struct StampApp: App {
         Window("Stamp", id: "main") {
             ContentView()
                 .environmentObject(model)
-                .frame(minWidth: 620, minHeight: 600)
+                .frame(minWidth: 560, minHeight: 640)
         }
         .windowResizability(.contentMinSize)
     }

@@ -1,4 +1,4 @@
-"""Device list widget: shows candidate removable devices, auto-refreshes,
+"""Device list group: shows candidate removable devices, auto-refreshes,
 and reports the current selection via a GObject signal.
 """
 
@@ -15,8 +15,9 @@ from core.device_scanner import DevicePoller, DeviceScanError, scan_devices
 from core.models import Device
 
 
-class DevicePicker(Gtk.Box):
-    """A Gtk.Box wrapping an Adw.PreferencesGroup of device rows + a refresh button."""
+class DevicePicker(Adw.PreferencesGroup):
+    """Step 1 of the select page: one radio row per candidate device, with a
+    refresh button in the group header and a single-row empty state."""
 
     __gsignals__ = {
         # Emitted whenever the user picks a different device (or None, if the
@@ -24,8 +25,8 @@ class DevicePicker(Gtk.Box):
         "device-selected": (GObject.SignalFlags.RUN_FIRST, None, (object,)),
     }
 
-    def __init__(self) -> None:
-        super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+    def __init__(self, title: str) -> None:
+        super().__init__(title=title)
 
         self._devices: list[Device] = []
         self._selected_path: str | None = None
@@ -33,31 +34,19 @@ class DevicePicker(Gtk.Box):
         self._poller: DevicePoller | None = None
         self._rows: dict[str, Adw.ActionRow] = {}
 
-        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        title = Gtk.Label(label="Target device", xalign=0.0)
-        title.add_css_class("heading")
-        header.append(title)
-        header.set_hexpand(True)
+        refresh_button = Gtk.Button(icon_name="view-refresh-symbolic", valign=Gtk.Align.CENTER)
+        refresh_button.add_css_class("flat")
+        refresh_button.set_tooltip_text("Refresh")
+        refresh_button.connect("clicked", lambda *_: self.refresh())
+        self.set_header_suffix(refresh_button)
 
-        spacer = Gtk.Box(hexpand=True)
-        header.append(spacer)
-
-        self._refresh_button = Gtk.Button(icon_name="view-refresh-symbolic")
-        self._refresh_button.set_tooltip_text("Refresh device list")
-        self._refresh_button.connect("clicked", lambda *_: self.refresh())
-        header.append(self._refresh_button)
-        self.append(header)
-
-        self._group = Adw.PreferencesGroup()
-        self.append(self._group)
-
-        self._empty_status = Adw.StatusPage(
-            icon_name="drive-removable-media-symbolic",
-            title="No removable devices found",
-            description="Insert an SD card or USB drive, then press refresh.",
+        self._empty_row = Adw.ActionRow(
+            title="No card found",
+            subtitle="Insert an SD card or USB drive. It shows up here automatically.",
         )
-        self._empty_status.set_visible(False)
-        self.append(self._empty_status)
+        self._empty_row.add_prefix(Gtk.Image(icon_name="media-removable-symbolic", pixel_size=24))
+        self._empty_row.add_css_class("dim-label")
+        self.add(self._empty_row)
 
     # --- lifecycle -----------------------------------------------------------
 
@@ -98,34 +87,44 @@ class DevicePicker(Gtk.Box):
 
         # rebuild rows
         for row in list(self._rows.values()):
-            self._group.remove(row)
+            self.remove(row)
         self._rows.clear()
 
-        self._empty_status.set_visible(len(candidates) == 0)
+        self._empty_row.set_title("No card found")
+        self._empty_row.set_subtitle("Insert an SD card or USB drive. It shows up here automatically.")
+        self._empty_row.set_visible(len(candidates) == 0)
+
+        # Settle the selection before building rows so the right radio starts checked.
+        selection_lost = self._selected_path not in {d.path for d in candidates}
+        if selection_lost:
+            self._selected_path = candidates[0].path if candidates else None
 
         for device in candidates:
             row = self._build_row(device)
-            self._group.add(row)
+            self.add(row)
             self._rows[device.path] = row
 
-        if self._selected_path not in self._rows:
-            self._select(candidates[0].path if candidates else None)
+        if selection_lost:
+            self._select(self._selected_path)
 
         return False  # GLib.idle_add: run once
 
     def _show_scan_error(self, exc: Exception) -> bool:
-        self._empty_status.set_title("Could not list devices")
-        self._empty_status.set_description(str(exc))
-        self._empty_status.set_visible(True)
+        self._empty_row.set_title("Could not list devices")
+        self._empty_row.set_subtitle(str(exc))
+        self._empty_row.set_visible(True)
         return False
 
     def _build_row(self, device: Device) -> Adw.ActionRow:
-        subtitle_bits = [device.display_model]
+        subtitle_bits = [device.path]
+        if device.transport:
+            subtitle_bits.append(device.transport.upper())
         if not device.removable:
-            subtitle_bits.append("not flagged removable")
-        if device.all_mountpoints:
-            subtitle_bits.append("mounted: " + ", ".join(device.all_mountpoints))
-        row = Adw.ActionRow(title=f"{device.path}  ·  {device.size_human}", subtitle=" — ".join(subtitle_bits))
+            subtitle_bits.append("not marked removable")
+        row = Adw.ActionRow(
+            title=f"{device.display_model}  ·  {device.size_human}",
+            subtitle="  ·  ".join(subtitle_bits),
+        )
 
         check = Gtk.CheckButton()
         check.set_group(self._radio_group_anchor())
@@ -137,6 +136,7 @@ class DevicePicker(Gtk.Box):
         if not device.removable:
             warn_icon = Gtk.Image.new_from_icon_name("dialog-warning-symbolic")
             warn_icon.set_tooltip_text("Not marked as removable")
+            warn_icon.add_css_class("warning")
             row.add_suffix(warn_icon)
 
         return row

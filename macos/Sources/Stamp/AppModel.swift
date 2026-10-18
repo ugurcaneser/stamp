@@ -59,6 +59,20 @@ final class AppModel: ObservableObject {
         selectedDisk != nil && preview != nil && !isCheckingZip
     }
 
+    /// One line next to the Format button saying what's still missing.
+    var formatHint: String {
+        if selectedDisk == nil { return "Insert a card to continue." }
+        if isCheckingZip { return "Checking the zip file…" }
+        if preview == nil { return "Choose a zip file to continue." }
+        return "Everything on the card will be erased."
+    }
+
+    /// The whole job as one 0...1 value: each phase is an equal slice.
+    var overallFraction: Double {
+        guard let phase = activePhase else { return outcome == nil ? 0 : 1 }
+        return (Double(phase.rawValue) + (fraction ?? 0)) / Double(Phase.allCases.count)
+    }
+
     // MARK: Devices
 
     /// Collapses the burst of DiskArbitration callbacks (one per disk at

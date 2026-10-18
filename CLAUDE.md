@@ -27,6 +27,8 @@ swift run --package-path macos Stamp                              # run the app 
 
 CI (`.github/workflows/ci.yml`) runs pytest on Python 3.10 and 3.12, the compile/`bash -n` checks, a `.deb` build, and on macOS `swift test` plus an ad-hoc-signed app/DMG build. Keep code compatible with Python 3.10 and the Swift package at tools 5.10 / macOS 14.
 
+The app icon's single source is `assets/stamp-icon.svg`; `assets/make-icons.sh` regenerates the committed `macos/Resources/AppIcon.icns` (needs `rsvg-convert`), and `build-deb.sh` installs the SVG as the hicolor icon. The GTK app ID, desktop file and icon name are all `com.ugurcaneser.Stamp` so GNOME can match the window to them; the polkit action IDs still use `org.example.stamp`.
+
 The package version lives in `packaging/debian/control` (`build-deb.sh` reads it from there); the README's install example also hardcodes it.
 
 ## Architecture

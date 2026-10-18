@@ -8,6 +8,8 @@
 	<string>Stamp</string>
 	<key>CFBundleExecutable</key>
 	<string>Stamp</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.ugurcaneser.stamp</string>
 	<key>CFBundleInfoDictionaryVersion</key>
