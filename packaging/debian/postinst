@@ -3,6 +3,7 @@
 set -e
 
 chmod 0755 /usr/lib/stamp/stamp-helper
+chmod 0755 /usr/lib/stamp/stamp-helper-unrestricted
 chmod 0755 /usr/bin/stamp
 
 if command -v update-desktop-database >/dev/null 2>&1; then

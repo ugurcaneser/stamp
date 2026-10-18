@@ -76,7 +76,7 @@ def test_format_device_refuses_root_disk():
             dev,
             root_disk_path="/dev/nvme0n1",
             unmount_fn=lambda d: None,
-            helper_invoke=lambda *a: None,
+            helper_invoke=lambda *a, **k: None,
         )
 
 
@@ -87,8 +87,8 @@ def test_format_device_skips_unmount_when_nothing_mounted():
     def fake_unmount(d):
         calls["unmount"] += 1
 
-    def fake_helper(path, label, progress):
-        calls["helper"].append((path, label))
+    def fake_helper(path, label, progress, unrestricted):
+        calls["helper"].append((path, label, unrestricted))
 
     result = format_device(
         dev,
@@ -98,7 +98,7 @@ def test_format_device_skips_unmount_when_nothing_mounted():
         helper_invoke=fake_helper,
     )
     assert calls["unmount"] == 0
-    assert calls["helper"] == [("/dev/sdb", "MYCARD")]
+    assert calls["helper"] == [("/dev/sdb", "MYCARD", False)]
     assert result.partition_path == "/dev/sdb1"
     assert result.label == "MYCARD"
 
@@ -114,7 +114,7 @@ def test_format_device_unmounts_when_mounted():
         dev,
         root_disk_path="/dev/nvme0n1",
         unmount_fn=fake_unmount,
-        helper_invoke=lambda *a: None,
+        helper_invoke=lambda *a, **k: None,
     )
     assert calls["unmount"] == 1
 
@@ -127,7 +127,7 @@ def test_format_device_calls_unmount_before_helper():
         dev,
         root_disk_path="/dev/nvme0n1",
         unmount_fn=lambda d: order.append("unmount"),
-        helper_invoke=lambda *a: order.append("helper"),
+        helper_invoke=lambda *a, **k: order.append("helper"),
     )
     assert order == ["unmount", "helper"]
 
@@ -139,7 +139,7 @@ def test_format_device_propagates_unmount_failure_without_calling_helper():
     def failing_unmount(d):
         raise FormatError("busy")
 
-    def fake_helper(*a):
+    def fake_helper(*a, **k):
         calls["helper"] += 1
 
     with pytest.raises(FormatError):
@@ -155,7 +155,7 @@ def test_format_device_propagates_unmount_failure_without_calling_helper():
 def test_format_device_propagates_helper_failure():
     dev = make_device("/dev/sdb")
 
-    def failing_helper(path, label, progress):
+    def failing_helper(path, label, progress, unrestricted):
         raise FormatError("mkfs.vfat failed")
 
     with pytest.raises(FormatError):
@@ -175,7 +175,7 @@ def test_format_device_reports_progress_messages():
         dev,
         root_disk_path="/dev/nvme0n1",
         unmount_fn=lambda d: None,
-        helper_invoke=lambda *a: None,
+        helper_invoke=lambda *a, **k: None,
         progress_cb=messages.append,
     )
     assert any("Unmounting" in m for m in messages)
@@ -190,17 +190,31 @@ def test_format_device_non_removable_requires_override():
             dev,
             root_disk_path="/dev/nvme0n1",
             unmount_fn=lambda d: None,
-            helper_invoke=lambda *a: None,
+            helper_invoke=lambda *a, **k: None,
         )
     # succeeds with explicit override
     result = format_device(
         dev,
         root_disk_path="/dev/nvme0n1",
         unmount_fn=lambda d: None,
-        helper_invoke=lambda *a: None,
+        helper_invoke=lambda *a, **k: None,
         allow_non_removable_override=True,
     )
     assert result.device_path == "/dev/sdz"
+
+
+def test_format_device_uses_unrestricted_helper_only_for_non_removable():
+    seen = []
+
+    def fake_helper(path, label, progress, unrestricted):
+        seen.append(unrestricted)
+
+    format_device(make_device("/dev/sdb"), root_disk_path="/dev/nvme0n1",
+                  unmount_fn=lambda d: None, helper_invoke=fake_helper)
+    format_device(make_device("/dev/sdz", removable=False), root_disk_path="/dev/nvme0n1",
+                  unmount_fn=lambda d: None, helper_invoke=fake_helper,
+                  allow_non_removable_override=True)
+    assert seen == [False, True]
 
 
 # --- default_helper_invoke validation (no real pkexec call is made/attempted) --------
@@ -222,7 +236,7 @@ def test_default_helper_invoke_accepts_valid_shapes_for_validation_only(monkeypa
     # which we intercept and make fail fast in a controlled way.
     import core.formatter as formatter_mod
 
-    def fake_resolve():
+    def fake_resolve(unrestricted=False):
         raise FormatError("stop-before-subprocess")
 
     monkeypatch.setattr(formatter_mod, "_resolve_helper_path", fake_resolve)
@@ -232,6 +246,31 @@ def test_default_helper_invoke_accepts_valid_shapes_for_validation_only(monkeypa
         default_helper_invoke("/dev/mmcblk0", "STAMP")
     with pytest.raises(FormatError, match="stop-before-subprocess"):
         default_helper_invoke("/dev/nvme0n1", "STAMP")
+
+
+def test_default_helper_invoke_runs_the_helper_matching_the_mode(monkeypatch):
+    import core.formatter as formatter_mod
+
+    commands = []
+
+    def fake_run(cmd, **kwargs):
+        commands.append(cmd)
+        return _completed()
+
+    monkeypatch.setattr(formatter_mod.os.path, "exists", lambda p: True)
+    monkeypatch.setattr(formatter_mod.subprocess, "run", fake_run)
+    default_helper_invoke("/dev/sdb", "STAMP")
+    default_helper_invoke("/dev/sdb", "STAMP", unrestricted=True)
+    assert commands[0][:2] == ["pkexec", "/usr/lib/stamp/stamp-helper"]
+    assert commands[1][:2] == ["pkexec", "/usr/lib/stamp/stamp-helper-unrestricted"]
+
+
+def test_unrestricted_helper_has_no_source_tree_fallback(monkeypatch):
+    import core.formatter as formatter_mod
+
+    monkeypatch.setattr(formatter_mod.os.path, "exists", lambda p: False)
+    with pytest.raises(FormatError, match="installed package"):
+        formatter_mod._resolve_helper_path(unrestricted=True)
 
 
 # --- wait_for_device_node -------------------------------------------------------------
@@ -267,6 +306,8 @@ def _completed(returncode=0, stdout="", stderr=""):
 def test_mount_partition_parses_mount_path_from_udisksctl_output():
     def fake_runner(cmd):
         assert cmd[:2] == ["udisksctl", "mount"]
+        # must stay interactive so the non-removable override can prompt
+        assert "--no-user-interaction" not in cmd
         return _completed(stdout="Mounted /dev/sdb1 at /media/user/STAMP\n")
 
     mount_path = mount_partition("/dev/sdb1", runner=fake_runner, exists_fn=lambda p: True)

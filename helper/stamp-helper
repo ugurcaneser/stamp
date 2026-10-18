@@ -3,6 +3,7 @@
 # stamp-helper — the ONLY part of Stamp that runs as root.
 #
 # Invoked as: pkexec /usr/lib/stamp/stamp-helper format-fat32 <device> <label>
+#         or: pkexec /usr/lib/stamp/stamp-helper-unrestricted format-fat32 <device> <label>
 #
 # Deliberately tiny and auditable: one whitelisted subcommand, strict input
 # validation, no shell interpolation of user-controlled strings into anything
@@ -22,6 +23,20 @@ fail() {
 }
 
 [ "$(id -u)" -eq 0 ] || fail "must run as root (invoke via pkexec)"
+
+# The same script is installed under two names, each tied to its own polkit
+# action (packaging/org.example.stamp.policy):
+#   stamp-helper               — no password for the active local session, so
+#                                it only accepts devices lsblk flags removable.
+#   stamp-helper-unrestricted  — admin password every time; also accepts
+#                                non-removable devices (the explicit override).
+# The mode comes from the path pkexec ran, never from an argument, so a caller
+# of the passwordless path cannot ask for the unrestricted behaviour.
+case "$(basename "$0")" in
+    stamp-helper) REQUIRE_REMOVABLE=1 ;;
+    stamp-helper-unrestricted) REQUIRE_REMOVABLE=0 ;;
+    *) fail "unexpected helper name: $0" ;;
+esac
 
 SUBCOMMAND="${1:-}"
 DEVICE="${2:-}"
@@ -54,6 +69,27 @@ if [ -n "$ROOT_SOURCE" ] && [[ "$ROOT_SOURCE" == /dev/* ]]; then
         fail "refusing to operate on '$DEVICE': it backs the running system's root filesystem"
     fi
 fi
+
+# Same criterion as core/device_scanner.py (lsblk RM), so the Python side
+# picks the unrestricted helper exactly when this check would refuse.
+if [ "$REQUIRE_REMOVABLE" -eq 1 ]; then
+    RM="$(lsblk -dno RM "$DEVICE" 2>/dev/null | tr -d '[:space:]')"
+    [ "$RM" = "1" ] || fail "refusing to operate on '$DEVICE': it is not flagged removable"
+fi
+
+# Refuse a disk with anything in its tree (partitions, crypt/LVM holders)
+# mounted at a system path. Mirrors core/safety.py's
+# PROTECTED_MOUNTPOINT_PREFIXES, which can never be overridden.
+while IFS= read -r node; do
+    [ -n "$node" ] || continue
+    while IFS= read -r target; do
+        case "$target" in
+            / | /boot | /boot/* | /home | /home/* | /var | /var/* | /usr | /usr/* | \
+            /etc | /etc/* | /opt | /opt/* | /srv | /srv/*)
+                fail "refusing to operate on '$DEVICE': $node is mounted at system path $target" ;;
+        esac
+    done < <(findmnt -rno TARGET --source "$node" 2>/dev/null || true)
+done < <(lsblk -nrpo NAME "$DEVICE" 2>/dev/null || true)
 
 # Volume label: sanitized further even though the Python caller already did
 # this (core/formatter.py:sanitize_label) — defense in depth. FAT32 labels

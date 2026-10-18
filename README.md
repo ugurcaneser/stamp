@@ -37,6 +37,12 @@ confirmation prompt for scripting, `--allow-non-removable` to override the
   action; removable devices do not require an additional erase acknowledgement.
 - A device not flagged removable adds one explicit risk checkbox to that same
   dialog; it does not add another popup. Root/system disks remain blocked.
+- No password prompt for removable devices in the active local session: the
+  privileged helper's polkit action is `allow_active: yes`, and the helper
+  itself refuses anything lsblk doesn't flag removable. The non-removable
+  override goes through a second, password-protected copy of the helper.
+  Trade-off: any program running in your session can format a removable
+  device without asking.
 - Every device/zip choice, command run, and outcome is logged to
   `~/.local/state/stamp/stamp.log`.
 

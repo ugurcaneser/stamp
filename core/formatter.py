@@ -25,6 +25,9 @@ Hybrid, as pre-authorized by the spec's §3 fallback clause:
     exactly one whitelisted subcommand, validates the device path against
     /dev/<letters><digits> / /dev/mmcblk<N> / /dev/nvme<N>n<N> shapes, and
     runs parted + mkfs.vfat -F 32 with no shell interpolation of user input.
+    It is installed twice: as stamp-helper (no password for the active
+    session, removable devices only) and as stamp-helper-unrestricted (admin
+    password, used for the explicit non-removable override).
 """
 
 from __future__ import annotations
@@ -45,7 +48,8 @@ log = logging.getLogger("stamp")
 DEFAULT_LABEL = "STAMP"
 
 UnmountFn = Callable[[Device], None]
-HelperInvoker = Callable[[str, str, "ProgressReporter | None"], None]
+# (device_path, label, progress, *, unrestricted) — see default_helper_invoke.
+HelperInvoker = Callable[..., None]
 ProgressReporter = Callable[[str], None]
 
 
@@ -115,6 +119,10 @@ def _find_block_object(manager, device_path: str):
 
 _HELPER_RELATIVE_PATH = os.path.join("helper", "stamp-helper")
 _INSTALLED_HELPER_PATH = "/usr/lib/stamp/stamp-helper"
+# Same script installed under a second name with its own polkit action: the
+# default path runs without a password but only accepts removable devices,
+# this one asks for an admin password and also accepts non-removable ones.
+_INSTALLED_UNRESTRICTED_HELPER_PATH = "/usr/lib/stamp/stamp-helper-unrestricted"
 
 # Matches /dev/sdX, /dev/mmcblkN, /dev/nvmeXnY — the device *itself*, not a
 # partition (no trailing partition number/suffix). Mirrors the validation the
@@ -122,7 +130,16 @@ _INSTALLED_HELPER_PATH = "/usr/lib/stamp/stamp-helper"
 _DEVICE_PATH_RE = re.compile(r"^/dev/(sd[a-z]+|mmcblk\d+|nvme\d+n\d+)$")
 
 
-def _resolve_helper_path() -> str:
+def _resolve_helper_path(unrestricted: bool = False) -> str:
+    if unrestricted:
+        # No source-tree fallback: the helper takes its mode from the name it
+        # was run as, and the repo only has the removable-only name.
+        if os.path.exists(_INSTALLED_UNRESTRICTED_HELPER_PATH):
+            return _INSTALLED_UNRESTRICTED_HELPER_PATH
+        raise FormatError(
+            "formatting a non-removable device needs the installed package "
+            f"({_INSTALLED_UNRESTRICTED_HELPER_PATH} not found)"
+        )
     if os.path.exists(_INSTALLED_HELPER_PATH):
         return _INSTALLED_HELPER_PATH
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -153,11 +170,20 @@ def partition_path_for(device_path: str, index: int = 1) -> str:
     return f"{device_path}{index}"
 
 
-def default_helper_invoke(device_path: str, label: str, progress: ProgressReporter | None = None) -> None:
+def default_helper_invoke(
+    device_path: str,
+    label: str,
+    progress: ProgressReporter | None = None,
+    *,
+    unrestricted: bool = False,
+) -> None:
+    """Run stamp-helper via pkexec. `unrestricted` selects the password-protected
+    helper that also accepts non-removable devices; the default one is
+    passwordless for the active session and refuses them."""
     if not _DEVICE_PATH_RE.match(device_path):
         raise FormatError(f"refusing to format {device_path}: does not look like a whole-disk device path")
 
-    helper_path = _resolve_helper_path()
+    helper_path = _resolve_helper_path(unrestricted)
     safe_label = sanitize_label(label)
     cmd = ["pkexec", helper_path, "format-fat32", device_path, safe_label]
 
@@ -200,7 +226,7 @@ PathExistsFn = Callable[[str], bool]
 _MOUNT_PATH_RE = re.compile(r" at (/\S+)")
 
 
-def _default_command_runner(cmd: list, timeout: int = 30) -> subprocess.CompletedProcess:
+def _default_command_runner(cmd: list, timeout: int = 120) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
 
 
@@ -229,7 +255,11 @@ def mount_partition(
     wait_for_device_node(partition_path, exists_fn=exists_fn)
 
     try:
-        result = runner(["udisksctl", "mount", "-b", partition_path, "--no-user-interaction"])
+        # Interaction stays allowed: mounting a removable partition needs no
+        # auth, but a non-removable one (the explicit override) makes udisks2
+        # ask for a password, which --no-user-interaction would turn into a
+        # hard failure.
+        result = runner(["udisksctl", "mount", "-b", partition_path])
     except FileNotFoundError as exc:
         raise FormatError("udisksctl is not installed") from exc
 
@@ -296,7 +326,7 @@ def format_device(
 
     report(f"Creating a fresh partition table on {device.path} and formatting as FAT32...")
     safe_label = sanitize_label(label)
-    helper_invoke(device.path, safe_label, progress_cb)
+    helper_invoke(device.path, safe_label, progress_cb, unrestricted=not device.removable)
 
     partition_path = partition_path_for(device.path)
     report(f"Format complete: {partition_path} is FAT32, labeled {safe_label}.")

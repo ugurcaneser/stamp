@@ -10,8 +10,8 @@ exactly one step.**
 | Enumerate devices | `lsblk -J` (subprocess) | user |
 | Determine root disk | `findmnt` + `lsblk -no PKNAME` (subprocess) | user |
 | Unmount device's existing partitions before formatting | udisks2 D-Bus, `Filesystem.Unmount` via `gi.repository.UDisks` (`core/formatter.py:default_unmount_all`) | user (PolicyKit prompts in-session) |
-| Create MBR partition table + one partition + `mkfs.vfat -F 32` | **`helper/stamp-helper` via `pkexec`** | root |
-| Mount the freshly-formatted partition | `udisksctl mount -b` (subprocess) | user (PolicyKit prompts in-session) |
+| Create MBR partition table + one partition + `mkfs.vfat -F 32` | **`helper/stamp-helper` via `pkexec`** | root (no password for removable devices, see below) |
+| Mount the freshly-formatted partition | `udisksctl mount -b` (subprocess) | user (no prompt for removable; PolicyKit prompts for the non-removable override) |
 | Extract zip, copy files (`rsync`) | subprocess, no privilege needed | user |
 | Unmount after copy | `udisksctl unmount -b` (subprocess) | user |
 
@@ -47,11 +47,31 @@ fallback helper as small and auditable as possible."*
 - Runs exactly four commands: `parted mklabel`, `parted mkpart`, `partprobe`,
   `mkfs.vfat -F 32`. Nothing else.
 
-`packaging/org.example.stamp.policy` ties a custom PolicyKit action to this
-helper's exact installed path (`/usr/lib/stamp/stamp-helper`) via the
-`org.freedesktop.policykit.exec.path` annotation, so the auth prompt shows a
-specific "partition and format the selected removable device as FAT32"
-message instead of the generic "run a program as root" pkexec prompt.
+### No password for removable devices
+
+`build-deb.sh` installs the helper twice, and
+`packaging/org.example.stamp.policy` ties one PolicyKit action to each path
+via the `org.freedesktop.policykit.exec.path` annotation:
+
+| Installed path | Action | `allow_active` | Accepts |
+|---|---|---|---|
+| `/usr/lib/stamp/stamp-helper` | `org.example.stamp.format-fat32` | `yes` | only devices with lsblk `RM=1` |
+| `/usr/lib/stamp/stamp-helper-unrestricted` | `org.example.stamp.format-fat32-unrestricted` | `auth_admin` | non-removable too |
+
+The helper picks its mode from `basename "$0"`, i.e. the path pkexec ran,
+never from an argument, so a caller of the passwordless path can't request
+the unrestricted behaviour. It's a copy rather than a symlink so pkexec
+matches the exact path. In both modes the helper also refuses a disk with
+anything in its tree mounted at a system path (same list as
+`core/safety.py`). `core/formatter.py:format_device` passes
+`unrestricted=not device.removable`, using the same `RM` criterion, so the
+normal flow never hits the password prompt and the override always does.
+The source tree only has the removable-only name, so the unrestricted path
+works only from the installed package.
+
+Trade-off, accepted deliberately for UX: any process in the active local
+session can wipe a removable device without a password. Inactive/remote
+sessions (`allow_inactive`, `allow_any`) stay `no`.
 
 ### Why mounting the new partition uses `udisksctl` (subprocess) instead of the `gi.repository.UDisks` client
 
@@ -81,7 +101,7 @@ functions the GUI uses, and it required zero changes to `core/`.
 
 - `core/device_scanner.py`, `core/safety.py`, `core/content_writer.py`,
   `core/logging_setup.py`, `core/formatter.py`'s pure logic, and
-  `cli/main.py`'s command handlers: unit tested (84 tests, `tests/`), run on
+  `cli/main.py`'s command handlers: unit tested (87 tests, `tests/`), run on
   every change during development. `content_writer.py`'s `rsync`/`sync`
   calls are exercised for real (not mocked) against temp directories.
 - `gui/*.py`: not unit tested by the pytest suite (no `gi` in the dev venv

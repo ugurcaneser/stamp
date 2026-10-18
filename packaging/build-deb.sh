@@ -31,6 +31,10 @@ cp -R "$PROJECT_ROOT/cli" "$PKG_ROOT/usr/lib/stamp/cli"
 cp "$PROJECT_ROOT/launcher.py" "$PKG_ROOT/usr/lib/stamp/launcher.py"
 cp "$PROJECT_ROOT/helper/stamp-helper" "$PKG_ROOT/usr/lib/stamp/stamp-helper"
 chmod 0755 "$PKG_ROOT/usr/lib/stamp/stamp-helper"
+# Second copy (not a symlink, so pkexec runs it under this exact path): the
+# helper picks its mode from its own name, see the policy file.
+cp "$PROJECT_ROOT/helper/stamp-helper" "$PKG_ROOT/usr/lib/stamp/stamp-helper-unrestricted"
+chmod 0755 "$PKG_ROOT/usr/lib/stamp/stamp-helper-unrestricted"
 
 # strip caches/tests from the installed copy
 find "$PKG_ROOT/usr/lib/stamp" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true

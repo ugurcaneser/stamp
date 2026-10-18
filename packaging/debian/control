@@ -12,6 +12,7 @@ Description: Format an SD card as FAT32 (any size) and load a zip's contents ont
  onto it.
  .
  Includes a GTK4/libadwaita GUI and a `stamp --cli` scripting mode that
- share the same core logic. Formatting requires one-time PolicyKit
- authentication for a small, auditable privileged helper that does
- nothing but partition + mkfs.vfat -F 32 the selected device.
+ share the same core logic. Formatting goes through a small, auditable
+ privileged helper that does nothing but partition + mkfs.vfat -F 32 the
+ selected device. Removable devices need no password in the active local
+ session; a device not flagged removable always asks for an admin password.

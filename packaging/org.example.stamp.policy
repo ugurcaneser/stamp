@@ -5,6 +5,15 @@
   <vendor>Stamp</vendor>
   <vendor_url>https://example.org/stamp</vendor_url>
 
+  <!-- Each action is tied to exactly one program path via
+       org.freedesktop.policykit.exec.path. The paths must match
+       core/formatter.py's _INSTALLED_HELPER_PATH /
+       _INSTALLED_UNRESTRICTED_HELPER_PATH and where build-deb.sh installs
+       helper/stamp-helper. The helper picks its mode from the path it was
+       run as, so these two entries are the whole permission model. -->
+
+  <!-- Removable devices only (the helper enforces lsblk RM=1 itself), so the
+       active local session may run it without a password. -->
   <action id="org.example.stamp.format-fat32">
     <description>Partition and format a removable card as FAT32</description>
     <message>Authentication is required to partition and format the selected removable device as FAT32</message>
@@ -12,12 +21,21 @@
     <defaults>
       <allow_any>no</allow_any>
       <allow_inactive>no</allow_inactive>
+      <allow_active>yes</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/lib/stamp/stamp-helper</annotate>
+  </action>
+
+  <!-- Explicit non-removable override: always asks for an admin password. -->
+  <action id="org.example.stamp.format-fat32-unrestricted">
+    <description>Partition and format a non-removable disk as FAT32</description>
+    <message>Authentication is required to partition and format a device that is not flagged as removable as FAT32</message>
+    <icon_name>drive-harddisk</icon_name>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
       <allow_active>auth_admin</allow_active>
     </defaults>
-    <!-- Ties this action to exactly one program path, so pkexec shows the
-         message above instead of the generic "run a program as root"
-         prompt. Must match core/formatter.py's _INSTALLED_HELPER_PATH and
-         where build-deb.sh installs helper/stamp-helper. -->
-    <annotate key="org.freedesktop.policykit.exec.path">/usr/lib/stamp/stamp-helper</annotate>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/lib/stamp/stamp-helper-unrestricted</annotate>
   </action>
 </policyconfig>
