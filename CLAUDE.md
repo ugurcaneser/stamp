@@ -16,7 +16,16 @@ bash -n helper/stamp-helper packaging/build-deb.sh packaging/debian/postinst
 python3 launcher.py --cli list                     # run CLI from source; no args = GUI
 ```
 
-CI (`.github/workflows/ci.yml`) runs pytest on Python 3.10 and 3.12, the compile/`bash -n` checks, and a `.deb` build. Keep code compatible with Python 3.10.
+macOS app (Swift package in `macos/`):
+
+```sh
+swift test --package-path macos                                   # XCTest suite
+swift test --package-path macos --filter SafetyTests/testRemovableCardIsAllowed
+swift run --package-path macos Stamp                              # run the app from source
+./macos/scripts/build-app.sh                                      # dist/macos/Stamp.app + DMG; STAMP_SIGN_IDENTITY / STAMP_NOTARY_PROFILE for Developer ID + notarization
+```
+
+CI (`.github/workflows/ci.yml`) runs pytest on Python 3.10 and 3.12, the compile/`bash -n` checks, a `.deb` build, and on macOS `swift test` plus an ad-hoc-signed app/DMG build. Keep code compatible with Python 3.10 and the Swift package at tools 5.10 / macOS 14.
 
 The package version lives in `packaging/debian/control` (`build-deb.sh` reads it from there); the README's install example also hardcodes it.
 
@@ -31,12 +40,20 @@ The package version lives in `packaging/debian/control` (`build-deb.sh` reads it
 - **Flow**: format → extract → mount → copy (rsync) → sync → unmount. In the GUI this runs on a background `threading.Thread` in `gui/main_window.py`; UI updates must go through `GLib.idle_add`.
 - Everything (device/zip choices, commands, outcomes) is logged to `~/.local/state/stamp/stamp.log` via `core/logging_setup.py` (logger name `"stamp"`).
 
+## macOS app
+
+- A separate native SwiftUI app, not shared code. `macos/Sources/StampCore` mirrors `core/` module for module (`DiskScanner`, `Safety`, `Formatter`, `ContentWriter`, plus `StampJob` for the whole flow) and must not import SwiftUI/AppKit. Only `macos/Sources/Stamp` is UI. **Safety rules exist twice** (`core/safety.py` and `Safety.swift`, and label sanitizing in both formatters), so change them on both sides together.
+- No privileged helper: `diskutil eraseDisk FAT32 <LABEL> MBRFormat /dev/diskN` forces FAT32 and doesn't need admin for external disks. All external tools run through the injectable `CommandRunning` protocol; tests use `FakeRunner` with canned `diskutil` plists (`Tests/StampCoreTests/Support.swift` holds a real Apple-silicon disk layout) and the real `/usr/bin/unzip`.
+- The boot disk is detected by attributing APFS container volumes and snapshot mounts back to their `APFSPhysicalStores`, because `/` lives on a synthesized disk. Disk images report `RemovableMedia` and must stay filtered out (`VirtualOrPhysical`/`BusProtocol`).
+- Don't use Foundation's `contentsOfDirectory`/`enumerator` for card or zip contents: they hide `._` files. Use `ContentWriter.walk`/`names` (readdir/lstat). Copies are `copyfile(COPYFILE_DATA)` so no xattrs/AppleDouble land on FAT.
+- Unlike the Linux worker, the zip is extracted before the erase, and the disk is re-scanned and refused if its size or model changed since confirmation.
+
 ## Testing
 
-- Tests cover `core/` and `cli/` only; the dev venv has no `gi`, so `gui/` isn't unit-tested.
+- Python tests cover `core/` and `cli/` only; the dev venv has no `gi`, so `gui/` isn't unit-tested. The Swift tests cover `StampCore` only.
 - `lsblk`/`findmnt` output is mocked. udisks2/`pkexec`/subprocess calls in `core/formatter.py` are tested through injected callables (`UnmountFn`, `HelperInvoker`, `CommandRunner`, `PathExistsFn`); keep new side-effecting code injectable the same way. `content_writer.py` runs real `rsync` against temp dirs.
-- Real udisks2/PolicyKit/`parted`/`mkfs.vfat` behavior can only be checked on a real Ubuntu machine with a disposable card. Don't claim that path is verified based on unit tests.
+- Real udisks2/PolicyKit/`parted`/`mkfs.vfat` behavior can only be checked on a real Ubuntu machine with a disposable card, and real `diskutil` erase/mount/eject only on a Mac with a disposable card. Don't claim either path is verified based on unit tests.
 
 ## Out of scope
 
-Non-Ubuntu platforms. Blueprint/`.ui` files: widgets are built in Python on purpose. debhelper/dh-python: `build-deb.sh` calls `dpkg-deb --build` directly.
+Platforms other than Ubuntu and macOS. Blueprint/`.ui` files: widgets are built in Python on purpose. debhelper/dh-python: `build-deb.sh` calls `dpkg-deb --build` directly.

@@ -5,3 +5,5 @@ dist/
 *.deb
 .pytest_cache/
 .claude/settings.local.json
+macos/.build/
+*.dmg

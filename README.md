@@ -5,9 +5,10 @@ FAT32 on cards larger than 32GB, which most stock GUI formatters (GParted's
 default dialog, Windows' Format tool) silently refuse or cap — then copies
 the contents of a zip file you provide onto it.
 
-Targets Ubuntu 22.04+/24.04+ on GNOME. GTK4 + libadwaita GUI, plus a `--cli`
-mode for scripting. See `STAMP_APP_SPEC.md` for the full specification this
-was built from, and `ARCHITECTURE.md` for the privilege-separation design.
+Targets Ubuntu 22.04+/24.04+ on GNOME (GTK4 + libadwaita GUI, plus a `--cli`
+mode for scripting) and macOS 14+ (native SwiftUI app in `macos/`, see
+[macOS](#macos) below). See `STAMP_APP_SPEC.md` for the full specification
+this was built from, and `ARCHITECTURE.md` for the privilege-separation design.
 
 ## Install
 
@@ -81,9 +82,51 @@ actual GNOME session end-to-end, and udisks2/PolicyKit prompts can only be
 verified on Linux. Before shipping, run it once on a real Ubuntu 22.04+/24.04+
 box with a real (disposable) SD card and walk the full flow.
 
+## macOS
+
+A native SwiftUI app with the same flow and safety rules, in `macos/` (a
+Swift package: `StampCore` library, `Stamp` app, `StampCoreTests`).
+
+```sh
+swift test --package-path macos            # unit tests
+swift run --package-path macos Stamp       # run from source
+./macos/scripts/build-app.sh               # dist/macos/Stamp.app + Stamp-<version>.dmg (ad-hoc signed)
+```
+
+For a distributable build, sign with a Developer ID and notarize:
+
+```sh
+xcrun notarytool store-credentials stamp-notary   # once: Apple ID + app-specific password, or an API key
+STAMP_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
+STAMP_NOTARY_PROFILE=stamp-notary \
+./macos/scripts/build-app.sh
+```
+
+How it differs from the Linux build:
+
+- Everything goes through `diskutil` (`eraseDisk FAT32 <LABEL> MBRFormat`,
+  which forces FAT32 at any card size). diskutil erases external disks for
+  the logged-in user without an admin password, so there is no privileged
+  helper and no password prompt at all.
+- The zip is checked and extracted *before* the card is erased, so a bad zip
+  never costs a wipe.
+- Files are copied data-only (no extended attributes), and the folders and
+  `._` files macOS adds to FAT volumes on its own (`.Spotlight-V100`,
+  `.Trashes`, `.fseventsd`, AppleDouble files) are removed before ejecting.
+  macOS may still recreate `.fseventsd` at eject time.
+- The card is ejected at the end instead of just unmounted.
+- Log: `~/Library/Logs/Stamp/stamp.log`.
+- The first copy triggers macOS's one-time "access files on a removable
+  volume" permission prompt.
+
+Same caveat as the Linux side: the `diskutil` erase/mount/eject path is unit
+tested against faked `diskutil` output only. Run it once on a real Mac with a
+disposable card before trusting it.
+
 ## What's deliberately not here
 
-- Non-Ubuntu distros, Windows, macOS: out of scope per the spec (§8).
+- Non-Ubuntu distros, Windows: out of scope per the spec (§8). macOS was
+  added later as a separate native app.
 - `gui/ui/*.ui` Blueprint/Cambalache files: widgets are built
   programmatically in Python instead. This is a deliberate deviation from
   the spec's suggested layout — Blueprint files can't be compiled/validated

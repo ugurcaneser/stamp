@@ -97,6 +97,64 @@ only `gui/` needs replacing — this was validated by writing `cli/main.py`
 as effectively a second, independent consumer of the exact same core
 functions the GUI uses, and it required zero changes to `core/`.
 
+## macOS app (`macos/`)
+
+A separate native SwiftUI app, not a port of the Python code: bundling
+Python + GTK into a signed, notarized `.app` would be far heavier than the
+logic it would reuse. `StampCore` mirrors `core/` module for module and has
+no SwiftUI/AppKit imports:
+
+| `core/` (Python) | `StampCore` (Swift) | macOS mechanism |
+|---|---|---|
+| `device_scanner.py` | `DiskScanner.swift` | `diskutil list -plist` + `diskutil info -plist` |
+| `safety.py` | `Safety.swift` | same rules, macOS system mount points |
+| `formatter.py` + `stamp-helper` | `Formatter.swift` | `diskutil eraseDisk FAT32 … MBRFormat`, `diskutil mount/eject` |
+| `content_writer.py` | `ContentWriter.swift` | `/usr/bin/unzip`, data-only `copyfile` |
+| `gui/main_window.py` worker | `StampJob.swift` | whole flow, used by the app and the tests |
+
+**No privileged helper.** diskutil's FAT32 personality is MS-DOS FAT32
+(`newfs_msdos -F 32`) at any size, so the reason the Linux build needs
+`mkfs.vfat -F 32` through pkexec doesn't apply. diskutil erases external
+disks for the console user without an admin password. Nothing runs as root.
+
+**Boot disk detection.** `/` is a sealed APFS snapshot on a synthesized
+container disk, not on the physical SSD. `DiskScanner` follows each APFS
+container's `APFSPhysicalStores` back to the physical whole disk and
+attributes the container's volume and snapshot mount points to it, so the
+internal SSD carries `/` and `/System/Volumes/*` and `Safety` blocks it the
+same way `core/safety.py` blocks the Linux root disk. Disks hosting an
+`OSInternal` container are blocked too. Disk images (`VirtualOrPhysical =
+Virtual` or `BusProtocol = Disk Image`) are dropped before any of that,
+because they report `RemovableMedia` too.
+
+**Removable.** `Disk.removable` is diskutil's `RemovableMedia`, the analogue
+of lsblk `RM`. External SSDs/HDDs report fixed media, so like on Linux they
+need the explicit override checkbox.
+
+**Flow.** check zip → extract → re-scan and re-check the disk (refusing if
+its size or model changed since the user confirmed) → erase → mount →
+copy → remove macOS metadata → `sync` → verify top-level entries → eject.
+Extraction happens before the erase, unlike the Linux worker.
+
+**Copy.** `/usr/bin/rsync` is openrsync on current macOS and doesn't support
+progress output, so the copy is done in Swift with
+`copyfile(COPYFILE_DATA)`: data only, which also keeps macOS from writing
+AppleDouble `._` files onto the FAT volume. Directory walking uses
+`readdir`/`lstat`, because Foundation's `contentsOfDirectory` and
+enumerators hide `._` files. With Foundation, `._` files inside a zip would
+silently not be copied, and the metadata cleanup would find nothing to
+remove.
+
+**Device changes.** `DiskWatcher` subscribes to DiskArbitration
+appeared/disappeared/description-changed callbacks and triggers a debounced
+rescan. There is no polling.
+
+**Distribution.** `macos/scripts/build-app.sh` builds a universal binary,
+assembles `Stamp.app` (version taken from `packaging/debian/control`), signs
+it with the hardened runtime, wraps it in a DMG, and notarizes and staples
+when given a Developer ID identity and a notarytool profile. The app is not
+sandboxed: App Sandbox doesn't allow running `diskutil` against raw disks.
+
 ## Testing reality check
 
 - `core/device_scanner.py`, `core/safety.py`, `core/content_writer.py`,
