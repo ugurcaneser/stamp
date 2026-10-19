@@ -6,8 +6,9 @@ default dialog, Windows' Format tool) silently refuse or cap — then copies
 the contents of a zip file you provide onto it.
 
 Targets Ubuntu 22.04+/24.04+ on GNOME (GTK4 + libadwaita GUI, plus a `--cli`
-mode for scripting) and macOS 14+ (native SwiftUI app in `macos/`, see
-[macOS](#macos) below). See `STAMP_APP_SPEC.md` for the full specification
+mode for scripting), macOS 14+ (native SwiftUI app in `macos/`, see
+[macOS](#macos) below) and Windows 10/11 (native WPF app in `windows/`, see
+[Windows](#windows) below). See `STAMP_APP_SPEC.md` for the full specification
 this was built from, and `ARCHITECTURE.md` for the privilege-separation design.
 
 ## Install
@@ -126,10 +127,47 @@ Same caveat as the Linux side: the `diskutil` erase/mount/eject path is unit
 tested against faked `diskutil` output only. Run it once on a real Mac with a
 disposable card before trusting it.
 
+## Windows
+
+A native WPF app (.NET 8) with the same flow and safety rules, in `windows/`
+(`StampCore` library, `Stamp` app, `StampCore.Tests`). Each GitHub release
+from v1.5.0 on has a self-contained `Stamp-<version>-win-x64.exe` (no .NET
+install needed).
+
+```sh
+dotnet test windows/tests/StampCore.Tests   # unit tests; runs on macOS/Linux too
+./windows/scripts/build-exe.sh              # dist/windows/Stamp-<version>-win-x64.exe (Windows only)
+```
+
+How it differs from the other builds:
+
+- Windows' own tools (`format`, `diskpart`, Explorer) refuse FAT32 above
+  32 GB, so Stamp writes the FAT32 structures itself (boot sector, FSInfo,
+  both FATs, root directory), like fat32format and Rufus. `diskpart` only
+  creates the MBR partition table (`clean`, one type `0x0C` partition at
+  1 MiB). The formatter is plain C# and is tested by formatting disk images
+  and checking them with `fsck.fat` and mtools.
+- That needs raw disk access, so the app asks for administrator rights
+  (one UAC prompt) when it starts.
+- "Removable" means Win32_DiskDrive `MediaType = Removable Media`. The disk
+  holding Windows (boot/system flags or the `%SystemDrive%` letter) and
+  virtual disks are never listed; disks over 2 TB are refused (MBR limit).
+- Like the macOS app, the zip is extracted before the card is erased, and
+  the disk is re-scanned and refused if its size, model or serial number
+  changed since confirmation.
+- Unsigned for now: SmartScreen warns about an unknown publisher on first
+  run ("More info" → "Run anyway").
+- Windows may show "You need to format the disk" for a moment while the
+  new partition is still empty; ignore it, Stamp formats it right after.
+- Log: `%LOCALAPPDATA%\Stamp\stamp.log`.
+
+The WPF app and the diskpart/raw-volume path have only been built in CI.
+Run it once on a real Windows PC with a disposable card before trusting it.
+
 ## What's deliberately not here
 
-- Non-Ubuntu distros, Windows: out of scope per the spec (§8). macOS was
-  added later as a separate native app.
+- Non-Ubuntu distros: out of scope per the spec (§8). macOS and Windows
+  were added later as separate native apps.
 - `gui/ui/*.ui` Blueprint/Cambalache files: widgets are built
   programmatically in Python instead. This is a deliberate deviation from
   the spec's suggested layout — Blueprint files can't be compiled/validated

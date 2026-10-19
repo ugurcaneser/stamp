@@ -25,9 +25,17 @@ swift run --package-path macos Stamp                              # run the app 
 ./macos/scripts/build-app.sh                                      # dist/macos/Stamp.app + DMG; STAMP_SIGN_IDENTITY / STAMP_NOTARY_PROFILE for Developer ID + notarization
 ```
 
-CI (`.github/workflows/ci.yml`) runs pytest on Python 3.10 and 3.12, the compile/`bash -n` checks, a `.deb` build, and on macOS `swift test` plus an ad-hoc-signed app/DMG build. Keep code compatible with Python 3.10 and the Swift package at tools 5.10 / macOS 14.
+Windows app (.NET 8 solution in `windows/`; `brew install dotnet@8 dosfstools mtools` on a Mac):
 
-The app icon's single source is `assets/stamp-icon.svg`; `assets/make-icons.sh` regenerates the committed `macos/Resources/AppIcon.icns` (needs `rsvg-convert`), and `build-deb.sh` installs the SVG as the hicolor icon. The GTK app ID, desktop file and icon name are all `com.ugurcaneser.Stamp` so GNOME can match the window to them; the polkit action IDs still use `org.example.stamp`.
+```sh
+dotnet test windows/tests/StampCore.Tests                                 # xUnit suite, runs on macOS/Linux
+STAMP_REQUIRE_FAT_TOOLS=1 dotnet test windows/tests/StampCore.Tests       # fail instead of skipping when fsck.fat/mtools are missing
+./windows/scripts/build-exe.sh                                            # dist/windows/Stamp-<version>-win-x64.exe; Windows only (no WindowsDesktop SDK elsewhere)
+```
+
+CI (`.github/workflows/ci.yml`) runs pytest on Python 3.10 and 3.12, the compile/`bash -n` checks, a `.deb` build, on macOS `swift test` plus an ad-hoc-signed app/DMG build, the Windows core tests on Linux with dosfstools/mtools, and on Windows the tests plus the `.exe` build (uploaded as the `stamp-windows` artifact). Keep code compatible with Python 3.10, the Swift package at tools 5.10 / macOS 14, and .NET 8.
+
+The app icon's single source is `assets/stamp-icon.svg`; `assets/make-icons.sh` regenerates the committed `macos/Resources/AppIcon.icns` and `windows/src/Stamp/Stamp.ico`/`Logo.png` (needs `rsvg-convert`), and `build-deb.sh` installs the SVG as the hicolor icon. The GTK app ID, desktop file and icon name are all `com.ugurcaneser.Stamp` so GNOME can match the window to them; the polkit action IDs still use `org.example.stamp`.
 
 The package version lives in `packaging/debian/control` (`build-deb.sh` reads it from there); the README's install example also hardcodes it.
 
@@ -50,12 +58,20 @@ The package version lives in `packaging/debian/control` (`build-deb.sh` reads it
 - Don't use Foundation's `contentsOfDirectory`/`enumerator` for card or zip contents: they hide `._` files. Use `ContentWriter.walk`/`names` (readdir/lstat). Copies are `copyfile(COPYFILE_DATA)` so no xattrs/AppleDouble land on FAT.
 - Unlike the Linux worker, the zip is extracted before the erase, and the disk is re-scanned and refused if its size or model changed since confirmation.
 
+## Windows app
+
+- A separate native WPF app. `windows/src/StampCore` mirrors the macOS `StampCore` (`DiskScanner`, `Safety`, `Fat32`, `DiskTools`, `ContentWriter`, `StampJob`) and targets plain `net8.0` so it builds and tests anywhere; only `windows/src/Stamp` is WPF. **Safety rules and label sanitizing now exist three times** (`core/`, `Safety.swift`/`Formatter.swift`, `Safety.cs`/`Fat32.cs`), so change them together.
+- Windows can't force FAT32 above 32 GB, so `Fat32.cs` writes the file system itself onto the raw partition; `diskpart` only partitions. The FAT size comes from the exact `F*B/4 >= clusters+2` bound (fat32format's formula is one entry short at some sizes). Keep every write sector-aligned: raw volume handles require it (`WritesAreSectorAligned` test).
+- The app runs elevated (`app.manifest` `requireAdministrator`) because diskpart and raw volume writes need it; there is no separate helper.
+- Disks come from one PowerShell script (`Get-Disk` + `Win32_DiskDrive` + `Get-Partition`) passed with `-EncodedCommand`; tests feed canned JSON (`Fixtures/get-disk.json`) through `FakeRunner`. Disk-touching steps sit behind `IDiskTools` (`FakeDiskTools` in tests).
+- Zip extraction skips Unix symlink entries itself (.NET would write them as text files) and guards against paths escaping the destination.
+
 ## Testing
 
-- Python tests cover `core/` and `cli/` only; the dev venv has no `gi`, so `gui/` isn't unit-tested. The Swift tests cover `StampCore` only.
+- Python tests cover `core/` and `cli/` only; the dev venv has no `gi`, so `gui/` isn't unit-tested. The Swift tests cover `StampCore` only, and the .NET tests cover `windows/src/StampCore` only.
 - `lsblk`/`findmnt` output is mocked. udisks2/`pkexec`/subprocess calls in `core/formatter.py` are tested through injected callables (`UnmountFn`, `HelperInvoker`, `CommandRunner`, `PathExistsFn`); keep new side-effecting code injectable the same way. `content_writer.py` runs real `rsync` against temp dirs.
-- Real udisks2/PolicyKit/`parted`/`mkfs.vfat` behavior can only be checked on a real Ubuntu machine with a disposable card, and real `diskutil` erase/mount/eject only on a Mac with a disposable card. Don't claim either path is verified based on unit tests.
+- Real udisks2/PolicyKit/`parted`/`mkfs.vfat` behavior can only be checked on a real Ubuntu machine with a disposable card, real `diskutil` erase/mount/eject only on a Mac with a disposable card, and real diskpart/raw-volume/eject behavior (and the WPF UI itself) only on a Windows PC with a disposable card. Don't claim any of these paths is verified based on unit tests.
 
 ## Out of scope
 
-Platforms other than Ubuntu and macOS. Blueprint/`.ui` files: widgets are built in Python on purpose. debhelper/dh-python: `build-deb.sh` calls `dpkg-deb --build` directly.
+Platforms other than Ubuntu, macOS and Windows. Blueprint/`.ui` files: widgets are built in Python on purpose. debhelper/dh-python: `build-deb.sh` calls `dpkg-deb --build` directly.
