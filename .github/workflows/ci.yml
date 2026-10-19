@@ -129,7 +129,7 @@ jobs:
 
           $payload = Join-Path $env:RUNNER_TEMP 'payload'
           New-Item -ItemType Directory -Force (Join-Path $payload 'firmware') | Out-Null
-          Set-Content -NoNewline (Join-Path $payload 'readme.txt') 'hello from stamp'
+          [IO.File]::WriteAllText((Join-Path $payload 'readme.txt'), 'hello from stamp')
           $bytes = New-Object byte[] (3MB); (New-Object Random 42).NextBytes($bytes)
           [IO.File]::WriteAllBytes((Join-Path $payload 'firmware\boot.bin'), $bytes)
           $zip = Join-Path $env:RUNNER_TEMP 'payload.zip'
