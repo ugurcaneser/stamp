@@ -1,0 +1,36 @@
+# Temporary: launch the built app on a Windows runner and capture the screen.
+name: Windows screenshot
+
+on:
+  push:
+    branches: [feat/windows]
+
+jobs:
+  screenshot:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Build
+        shell: bash
+        run: ./windows/scripts/build-exe.sh
+      - name: Launch and capture
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          $exe = Get-ChildItem dist/windows/Stamp-*-win-x64.exe | Select-Object -First 1
+          $p = Start-Process $exe.FullName -PassThru
+          Start-Sleep -Seconds 12
+          $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+          $g = [System.Drawing.Graphics]::FromImage($bmp)
+          $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+          $bmp.Save("$PWD/screen.png")
+          Get-Content "$env:LOCALAPPDATA/Stamp/stamp.log" -ErrorAction SilentlyContinue
+          Stop-Process -Id $p.Id -ErrorAction SilentlyContinue
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screenshot
+          path: screen.png
