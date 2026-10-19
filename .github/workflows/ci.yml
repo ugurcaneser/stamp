@@ -133,8 +133,8 @@ jobs:
           $bytes = New-Object byte[] (3MB); (New-Object Random 42).NextBytes($bytes)
           [IO.File]::WriteAllBytes((Join-Path $payload 'firmware\boot.bin'), $bytes)
           $zip = Join-Path $env:RUNNER_TEMP 'payload.zip'
-          Compress-Archive -Path (Join-Path $payload '*') -DestinationPath $zip
           Add-Type -AssemblyName System.IO.Compression.FileSystem
+          [IO.Compression.ZipFile]::CreateFromDirectory($payload, $zip)
           $archive = [IO.Compression.ZipFile]::OpenRead($zip); $archive.Entries | Format-Table FullName, Length; $archive.Dispose()
 
           dotnet run --project windows/tests/Integration -- $number $zip
