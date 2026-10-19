@@ -167,7 +167,22 @@ public sealed class WindowsDiskTools(ICommandRunner runner, DiskScanner scanner)
             return new Volume(handle, letter);
         }
 
-        public void AllowExtendedIo() => Control(FsctlAllowExtendedDasdIo, [], [], "allow extended I/O on");
+        /// <summary>
+        /// Lets writes reach sectors past what the file system reports. A RAW
+        /// volume (what diskpart leaves) refuses it with ERROR_INVALID_PARAMETER
+        /// and doesn't need it, so failure is fine.
+        /// </summary>
+        public void AllowExtendedIo()
+        {
+            try
+            {
+                Control(FsctlAllowExtendedDasdIo, [], [], "allow extended I/O on");
+            }
+            catch (Win32Exception exc)
+            {
+                StampLog.Info($"extended I/O not enabled on {letter}: ({exc.Message})");
+            }
+        }
         public void Dismount() => Control(FsctlDismountVolume, [], [], "dismount");
         public void AllowRemoval() => Control(IoctlStorageMediaRemoval, [0], [], "allow removal of");
         public void EjectMedia() => Control(IoctlStorageEjectMedia, [], [], "eject");
