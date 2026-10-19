@@ -26,7 +26,7 @@ public sealed class ProcessRunner : ICommandRunner
             CreateNoWindow = true,
         };
         foreach (var argument in arguments) info.ArgumentList.Add(argument);
-        StampLog.Info($"run: {executable} {string.Join(' ', arguments)}");
+        StampLog.Info($"run: {executable} {string.Join(' ', arguments.Select(a => a.Length > 120 ? "<script>" : a))}");
 
         using var process = Process.Start(info) ?? throw new InvalidOperationException($"could not start {executable}");
         if (stdin is not null)

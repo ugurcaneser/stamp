@@ -115,3 +115,38 @@ jobs:
         with:
           name: stamp-windows
           path: dist/windows/Stamp-*-win-x64.exe
+
+      - name: Real Windows path against a 40 GB VHD
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $vhd = Join-Path $env:RUNNER_TEMP 'card.vhdx'
+          "create vdisk file=`"$vhd`" maximum=40960 type=expandable`r`nselect vdisk file=`"$vhd`"`r`nattach vdisk`r`n" |
+            Out-File -Encoding ascii (Join-Path $env:RUNNER_TEMP 'vhd.txt')
+          diskpart /s (Join-Path $env:RUNNER_TEMP 'vhd.txt')
+          if ($LASTEXITCODE -ne 0) { throw 'could not create the VHD' }
+          $number = (Get-DiskImage -ImagePath $vhd | Get-Disk).Number
+
+          $payload = Join-Path $env:RUNNER_TEMP 'payload'
+          New-Item -ItemType Directory -Force (Join-Path $payload 'firmware') | Out-Null
+          Set-Content -NoNewline (Join-Path $payload 'readme.txt') 'hello from stamp'
+          $bytes = New-Object byte[] (3MB); (New-Object Random 42).NextBytes($bytes)
+          [IO.File]::WriteAllBytes((Join-Path $payload 'firmware\boot.bin'), $bytes)
+          $zip = Join-Path $env:RUNNER_TEMP 'payload.zip'
+          Compress-Archive -Path (Join-Path $payload '*') -DestinationPath $zip
+
+          dotnet run --project windows/tests/Integration -- $number $zip
+          if ($LASTEXITCODE -ne 0) { throw 'the Stamp job failed' }
+
+          # Ejecting may take the volume offline; bring it back to inspect it.
+          Get-Disk -Number $number | Where-Object IsOffline | Set-Disk -IsOffline $false
+          $volume = Get-Partition -DiskNumber $number | Get-Volume
+          $volume | Format-List DriveLetter, FileSystem, FileSystemLabel, Size
+          if ($volume.FileSystem -ne 'FAT32') { throw "file system is $($volume.FileSystem), not FAT32" }
+          if ($volume.FileSystemLabel -ne 'CI CARD') { throw "label is $($volume.FileSystemLabel)" }
+          $letter = $volume.DriveLetter
+          if ((Get-Content -Raw "${letter}:\readme.txt") -ne 'hello from stamp') { throw 'readme.txt differs' }
+          if ((Get-FileHash "${letter}:\firmware\boot.bin").Hash -ne (Get-FileHash (Join-Path $payload 'firmware\boot.bin')).Hash) { throw 'boot.bin differs' }
+          chkdsk "${letter}:"
+          if ($LASTEXITCODE -ne 0) { throw "chkdsk reported problems ($LASTEXITCODE)" }
+          Get-Content (Join-Path $env:LOCALAPPDATA 'Stamp\stamp.log')
