@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Lets the app build (not run) on macOS/Linux too. -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <AssemblyName>Stamp</AssemblyName>
+    <RootNamespace>Stamp</RootNamespace>
+    <ApplicationIcon>Stamp.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Product>Stamp</Product>
+    <Company>Ugurcan Eser</Company>
+    <Description>Format an SD card or USB drive as FAT32 and copy a zip's contents onto it.</Description>
+    <!-- build-exe.sh passes the real version from packaging/debian/control. -->
+    <Version>0.0.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\StampCore\StampCore.csproj" />
+    <Resource Include="Logo.png" />
+  </ItemGroup>
+
+</Project>

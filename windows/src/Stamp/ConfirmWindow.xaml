@@ -1,0 +1,47 @@
+<Window x:Class="Stamp.ConfirmWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Erase card?" Width="500" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        Background="{StaticResource CardBrush}" FontFamily="{StaticResource UiFont}" FontSize="14"
+        Foreground="{StaticResource TextBrush}">
+  <StackPanel Margin="24">
+    <DockPanel Margin="0,0,0,16">
+      <TextBlock DockPanel.Dock="Left" Style="{StaticResource Icon}" Text="&#xE7BA;" FontSize="34"
+                 Foreground="{StaticResource WarningBrush}" Margin="0,0,14,0" />
+      <StackPanel>
+        <TextBlock x:Name="Heading" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" />
+        <TextBlock Text="Everything on this card will be deleted." Style="{StaticResource Secondary}" />
+      </StackPanel>
+    </DockPanel>
+
+    <Border Background="{StaticResource FillBrush}" CornerRadius="6" Padding="12">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition />
+          <RowDefinition />
+          <RowDefinition />
+        </Grid.RowDefinitions>
+        <TextBlock Text="Card" Style="{StaticResource Secondary}" Margin="0,2,14,2" />
+        <TextBlock x:Name="CardText" Grid.Column="1" TextWrapping="Wrap" Margin="0,2" />
+        <TextBlock Grid.Row="1" Text="Zip" Style="{StaticResource Secondary}" Margin="0,2,14,2" />
+        <TextBlock x:Name="ZipText" Grid.Row="1" Grid.Column="1" TextWrapping="Wrap" Margin="0,2" />
+        <TextBlock Grid.Row="2" Text="Name" Style="{StaticResource Secondary}" Margin="0,2,14,2" />
+        <TextBlock x:Name="NameText" Grid.Row="2" Grid.Column="1" Margin="0,2" />
+      </Grid>
+    </Border>
+
+    <CheckBox x:Name="NonRemovableBox" Margin="0,14,0,0" Visibility="Collapsed"
+              Content="Use this device even though it is not marked removable"
+              Checked="OnRiskChanged" Unchecked="OnRiskChanged" />
+
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+      <Button Content="Cancel" IsCancel="True" Padding="18,8" Margin="0,0,8,0" />
+      <Button x:Name="EraseButton" Content="Erase &amp; Copy" Style="{StaticResource DangerButton}" Click="OnEraseClicked" />
+    </StackPanel>
+  </StackPanel>
+</Window>

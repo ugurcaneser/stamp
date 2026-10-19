@@ -36,7 +36,7 @@ jobs:
         run: python -m compileall -q launcher.py cli core gui
 
       - name: Check shell syntax
-        run: bash -n helper/stamp-helper packaging/build-deb.sh packaging/debian/postinst
+        run: bash -n helper/stamp-helper packaging/build-deb.sh packaging/debian/postinst assets/make-icons.sh windows/scripts/build-exe.sh
 
   package:
     name: Build Debian package
@@ -68,3 +68,50 @@ jobs:
 
       - name: Build app and DMG (ad-hoc signed)
         run: ./macos/scripts/build-app.sh
+
+  windows-core:
+    name: Windows core (FAT32 checked with dosfstools)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Install dosfstools and mtools
+        run: sudo apt-get update && sudo apt-get install -y dosfstools mtools
+
+      - name: Run unit tests
+        env:
+          STAMP_REQUIRE_FAT_TOOLS: "1"
+        run: dotnet test windows/tests/StampCore.Tests
+
+  windows:
+    name: Windows app
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Run unit tests
+        run: dotnet test windows/tests/StampCore.Tests
+
+      - name: Build Stamp.exe
+        shell: bash
+        run: ./windows/scripts/build-exe.sh
+
+      - name: Upload Stamp.exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: stamp-windows
+          path: dist/windows/Stamp-*-win-x64.exe
