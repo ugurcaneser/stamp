@@ -14,13 +14,20 @@ this was built from, and `ARCHITECTURE.md` for the privilege-separation design.
 
 ## Install
 
-Each release has a package for Ubuntu 22.04+ / Debian 12+ and for Fedora;
-on Arch, install `stamp-sd` from the AUR:
+Each release has a package for Ubuntu 22.04+ / Debian 12+ and for Fedora:
 
 ```sh
 sudo apt install ./stamp_1.6.0_all.deb          # Ubuntu / Debian
 sudo dnf install ./stamp-1.6.0-1.noarch.rpm     # Fedora
-yay -S stamp-sd                                 # Arch (any AUR helper)
+```
+
+On Arch, build the `stamp-sd` package from the PKGBUILD in this repo (it
+downloads the release's source tarball and checks its hash). It isn't on the
+AUR yet:
+
+```sh
+git clone https://github.com/ugurcaneser/stamp.git
+cd stamp/packaging/arch && makepkg -si
 ```
 
 To build them yourself (needs [nfpm](https://nfpm.goreleaser.com)):
@@ -30,7 +37,7 @@ To build them yourself (needs [nfpm](https://nfpm.goreleaser.com)):
 ./packaging/build-packages.sh dist deb   # only the .deb
 ```
 
-`packaging/arch/PKGBUILD` is the AUR package. It's named `stamp-sd`
+`packaging/arch/PKGBUILD` is the Arch (future AUR) package. It's named `stamp-sd`
 because the AUR's `stamp` is an unrelated GNOME app; the two conflict since
 both ship `/usr/bin/stamp`.
 
