@@ -57,6 +57,8 @@ overrides:
     depends:
       - python3 >= 3.10
       - python3-gobject
+      # cairo-1.0.typelib, which Gtk 4 loads; Fedora's gtk4 doesn't pull it in
+      - gobject-introspection
       - gtk4
       - libadwaita
       - libudisks2
