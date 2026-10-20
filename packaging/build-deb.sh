@@ -55,7 +55,7 @@ mkdir -p "$PKG_ROOT/usr/share/icons/hicolor/scalable/apps"
 cp "$PROJECT_ROOT/assets/stamp-icon.svg" "$PKG_ROOT/usr/share/icons/hicolor/scalable/apps/com.ugurcaneser.Stamp.svg"
 
 mkdir -p "$PKG_ROOT/usr/share/polkit-1/actions"
-cp "$SCRIPT_DIR/org.example.stamp.policy" "$PKG_ROOT/usr/share/polkit-1/actions/org.example.stamp.policy"
+cp "$SCRIPT_DIR/com.ugurcaneser.stamp.policy" "$PKG_ROOT/usr/share/polkit-1/actions/com.ugurcaneser.stamp.policy"
 
 mkdir -p "$PKG_ROOT/usr/share/doc/stamp"
 cp "$PROJECT_ROOT/README.md" "$PKG_ROOT/usr/share/doc/stamp/README.md"

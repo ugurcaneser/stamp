@@ -3,7 +3,7 @@
  "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
 <policyconfig>
   <vendor>Stamp</vendor>
-  <vendor_url>https://example.org/stamp</vendor_url>
+  <vendor_url>https://github.com/ugurcaneser/stamp</vendor_url>
 
   <!-- Each action is tied to exactly one program path via
        org.freedesktop.policykit.exec.path. The paths must match
@@ -14,7 +14,7 @@
 
   <!-- Removable devices only (the helper enforces lsblk RM=1 itself), so the
        active local session may run it without a password. -->
-  <action id="org.example.stamp.format-fat32">
+  <action id="com.ugurcaneser.stamp.format-fat32">
     <description>Partition and format a removable card as FAT32</description>
     <message>Authentication is required to partition and format the selected removable device as FAT32</message>
     <icon_name>drive-removable-media</icon_name>
@@ -27,7 +27,7 @@
   </action>
 
   <!-- Explicit non-removable override: always asks for an admin password. -->
-  <action id="org.example.stamp.format-fat32-unrestricted">
+  <action id="com.ugurcaneser.stamp.format-fat32-unrestricted">
     <description>Partition and format a non-removable disk as FAT32</description>
     <message>Authentication is required to partition and format a device that is not flagged as removable as FAT32</message>
     <icon_name>drive-harddisk</icon_name>

@@ -50,13 +50,13 @@ fallback helper as small and auditable as possible."*
 ### No password for removable devices
 
 `build-deb.sh` installs the helper twice, and
-`packaging/org.example.stamp.policy` ties one PolicyKit action to each path
+`packaging/com.ugurcaneser.stamp.policy` ties one PolicyKit action to each path
 via the `org.freedesktop.policykit.exec.path` annotation:
 
 | Installed path | Action | `allow_active` | Accepts |
 |---|---|---|---|
-| `/usr/lib/stamp/stamp-helper` | `org.example.stamp.format-fat32` | `yes` | only devices with lsblk `RM=1` |
-| `/usr/lib/stamp/stamp-helper-unrestricted` | `org.example.stamp.format-fat32-unrestricted` | `auth_admin` | non-removable too |
+| `/usr/lib/stamp/stamp-helper` | `com.ugurcaneser.stamp.format-fat32` | `yes` | only devices with lsblk `RM=1` |
+| `/usr/lib/stamp/stamp-helper-unrestricted` | `com.ugurcaneser.stamp.format-fat32-unrestricted` | `auth_admin` | non-removable too |
 
 The helper picks its mode from `basename "$0"`, i.e. the path pkexec ran,
 never from an argument, so a caller of the passwordless path can't request

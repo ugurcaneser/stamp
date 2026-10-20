@@ -25,7 +25,7 @@ fail() {
 [ "$(id -u)" -eq 0 ] || fail "must run as root (invoke via pkexec)"
 
 # The same script is installed under two names, each tied to its own polkit
-# action (packaging/org.example.stamp.policy):
+# action (packaging/com.ugurcaneser.stamp.policy):
 #   stamp-helper               — no password for the active local session, so
 #                                it only accepts devices lsblk flags removable.
 #   stamp-helper-unrestricted  — admin password every time; also accepts
