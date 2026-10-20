@@ -17,6 +17,6 @@ pkgbase = stamp-sd
 	depends = util-linux
 	conflicts = stamp
 	source = stamp-1.6.0.tar.gz::https://github.com/ugurcaneser/stamp/archive/refs/tags/v1.6.0.tar.gz
-	sha256sums = SKIP
+	sha256sums = 99fe5887064ef14c66baa87d205cb9bbf35a7deeb3ced55382af4fb3e8921687
 
 pkgname = stamp-sd
