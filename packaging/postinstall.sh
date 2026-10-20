@@ -1,10 +1,7 @@
 #!/bin/sh
-# postinst for stamp.deb — fix permissions and refresh desktop/icon caches.
+# Post-install for every Linux package (deb, rpm, Arch): refresh desktop and
+# icon caches where the distribution doesn't do it through its own triggers.
 set -e
-
-chmod 0755 /usr/lib/stamp/stamp-helper
-chmod 0755 /usr/lib/stamp/stamp-helper-unrestricted
-chmod 0755 /usr/bin/stamp
 
 if command -v update-desktop-database >/dev/null 2>&1; then
     update-desktop-database -q /usr/share/applications || true

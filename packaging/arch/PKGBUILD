@@ -1,0 +1,20 @@
+# Maintainer: Uğurcan Eser <ugurcaneser@yahoo.com>
+#
+# AUR package built from the release's source tarball. The file layout comes
+# from packaging/stage.sh, the same script the .deb/.rpm/Arch release assets
+# are built from; keep depends in step with packaging/nfpm.yaml.
+pkgname=stamp
+pkgver=1.5.1
+pkgrel=1
+pkgdesc="Format an SD card as FAT32 (any size) and load a zip's contents onto it"
+arch=('any')
+url="https://github.com/ugurcaneser/stamp"
+license=('LicenseRef-unknown')
+depends=('python' 'python-gobject' 'gtk4' 'libadwaita' 'polkit' 'udisks2'
+         'parted' 'dosfstools' 'rsync' 'util-linux')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+    "$srcdir/$pkgname-$pkgver/packaging/stage.sh" "$pkgdir"
+}

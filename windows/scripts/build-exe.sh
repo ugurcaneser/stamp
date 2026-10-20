@@ -4,7 +4,7 @@
 # the WPF part can't be built by the macOS/Linux .NET SDK.
 #
 # Output: dist/windows/Stamp-<version>-win-x64.exe
-# The version comes from packaging/debian/control so every platform ships the same number.
+# The version comes from packaging/nfpm.yaml so every platform ships the same number.
 # Unsigned for now: Windows SmartScreen shows "unknown publisher" on first run.
 
 set -euo pipefail
@@ -14,7 +14,7 @@ WINDOWS_DIR="$(dirname "$SCRIPT_DIR")"
 PROJECT_ROOT="$(dirname "$WINDOWS_DIR")"
 OUT_DIR="${1:-$PROJECT_ROOT/dist/windows}"
 
-VERSION="$(grep -m1 '^Version:' "$PROJECT_ROOT/packaging/debian/control" | awk '{print $2}')"
+VERSION="$(sed -n 's/^version: "\(.*\)"$/\1/p' "$PROJECT_ROOT/packaging/nfpm.yaml")"
 
 echo "Building Stamp ${VERSION} for Windows..."
 rm -rf "$OUT_DIR/publish"

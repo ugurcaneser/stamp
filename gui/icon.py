@@ -1,5 +1,5 @@
 """The app icon, from the icon theme when installed or from assets/ when run
-from a source checkout (the .deb installs it under the app ID's name).
+from a source checkout (the Linux packages install it under the app ID's name).
 """
 
 from __future__ import annotations

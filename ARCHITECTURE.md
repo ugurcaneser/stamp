@@ -49,7 +49,7 @@ fallback helper as small and auditable as possible."*
 
 ### No password for removable devices
 
-`build-deb.sh` installs the helper twice, and
+`packaging/stage.sh` installs the helper twice, and
 `packaging/com.ugurcaneser.stamp.policy` ties one PolicyKit action to each path
 via the `org.freedesktop.policykit.exec.path` annotation:
 
@@ -150,7 +150,7 @@ appeared/disappeared/description-changed callbacks and triggers a debounced
 rescan. There is no polling.
 
 **Distribution.** `macos/scripts/build-app.sh` builds a universal binary,
-assembles `Stamp.app` (version taken from `packaging/debian/control`), signs
+assembles `Stamp.app` (version taken from `packaging/nfpm.yaml`), signs
 it with the hardened runtime, wraps it in a DMG, and notarizes and staples
 when given a Developer ID identity and a notarytool profile. The app is not
 sandboxed: App Sandbox doesn't allow running `diskutil` against raw disks.
@@ -177,6 +177,8 @@ sandboxed: App Sandbox doesn't allow running `diskutil` against raw disks.
   `mkfs.vfat`/`partprobe` sequence is unverified beyond that — it mirrors
   the prototype script's validated command sequence (spec §7) but should be
   run once against a real disposable card before trusting it in anger.
-- `packaging/build-deb.sh`: actually run end-to-end (via Homebrew's `dpkg`)
-  to produce and inspect a real `.deb`; installing it was not verified since
-  `dpkg -i`/`apt` don't function in this environment.
+- `packaging/build-packages.sh`: CI builds the `.deb`, `.rpm` and Arch
+  packages, installs each in Ubuntu, Debian, Fedora and Arch containers and
+  checks that the GTK/libadwaita/UDisks typelibs and the external tools
+  resolve. Containers have no polkit daemon or block devices, so the
+  pkexec/polkit path itself is only verified on real machines.

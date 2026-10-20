@@ -11,8 +11,8 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/pytest                                   # full suite (config in pyproject.toml, no PYTHONPATH needed)
 .venv/bin/pytest tests/test_safety.py::test_name   # single test
 python -m compileall -q launcher.py cli core gui   # CI syntax check
-bash -n helper/stamp-helper packaging/build-deb.sh packaging/debian/postinst
-./packaging/build-deb.sh                           # -> dist/stamp_<version>_all.deb
+bash -n helper/stamp-helper packaging/stage.sh packaging/build-packages.sh packaging/postinstall.sh
+./packaging/build-packages.sh                      # -> dist/ .deb + .rpm + Arch .pkg.tar.zst (needs nfpm)
 python3 launcher.py --cli list                     # run CLI from source; no args = GUI
 ```
 
@@ -33,18 +33,20 @@ STAMP_REQUIRE_FAT_TOOLS=1 dotnet test windows/tests/StampCore.Tests       # fail
 ./windows/scripts/build-exe.sh                                            # dist/windows/Stamp-<version>-win-x64.exe; Windows only (no WindowsDesktop SDK elsewhere)
 ```
 
-CI (`.github/workflows/ci.yml`) runs pytest on Python 3.10 and 3.12, the compile/`bash -n` checks, a `.deb` build, on macOS `swift test` plus an ad-hoc-signed app/DMG build, the Windows core tests on Linux with dosfstools/mtools, and on Windows the tests plus the `.exe` build (uploaded as the `stamp-windows` artifact). Keep code compatible with Python 3.10, the Swift package at tools 5.10 / macOS 14, and .NET 8.
+CI (`.github/workflows/ci.yml`) runs pytest on Python 3.10 and 3.12, the compile/`bash -n` checks, the `.deb`/`.rpm`/Arch package build (artifact `stamp-linux`) plus an install check of each in Ubuntu 22.04/24.04, Debian 12, Fedora and Arch containers and a `makepkg` of the AUR PKGBUILD, on macOS `swift test` plus an ad-hoc-signed app/DMG build, the Windows core tests on Linux with dosfstools/mtools, and on Windows the tests plus the `.exe` build (uploaded as the `stamp-windows` artifact). Keep code compatible with Python 3.10, the Swift package at tools 5.10 / macOS 14, and .NET 8.
 
-The app icon's single source is `assets/stamp-icon.svg`; `assets/make-icons.sh` regenerates the committed `macos/Resources/AppIcon.icns` and `windows/src/Stamp/Stamp.ico`/`Logo.png` (needs `rsvg-convert`), and `build-deb.sh` installs the SVG as the hicolor icon. The GTK app ID, desktop file and icon name are all `com.ugurcaneser.Stamp` so GNOME can match the window to them; the polkit action IDs use `com.ugurcaneser.stamp`.
+The app icon's single source is `assets/stamp-icon.svg`; `assets/make-icons.sh` regenerates the committed `macos/Resources/AppIcon.icns` and `windows/src/Stamp/Stamp.ico`/`Logo.png` (needs `rsvg-convert`), and `packaging/stage.sh` installs the SVG as the hicolor icon. The GTK app ID, desktop file and icon name are all `com.ugurcaneser.Stamp` so GNOME can match the window to them; the polkit action IDs use `com.ugurcaneser.stamp`.
 
-The package version lives in `packaging/debian/control` (`build-deb.sh` reads it from there); the README's install example also hardcodes it.
+Linux packaging: `packaging/stage.sh DESTDIR` is the single description of the installed file tree; `build-packages.sh` stages it and runs nfpm with `packaging/nfpm.yaml` (metadata plus per-format dependency names) to produce the `.deb`, `.rpm` and Arch package, and `packaging/arch/PKGBUILD` (AUR) calls `stage.sh` from the release tarball. Keep the dependency lists in `nfpm.yaml` and the PKGBUILD in step.
+
+The release version lives in `packaging/nfpm.yaml` (`version:`); `build-packages.sh`, `macos/scripts/build-app.sh` and `windows/scripts/build-exe.sh` all read it from there. `pkgver` in `packaging/arch/PKGBUILD` (CI checks it matches) and the README's install examples also hardcode it.
 
 ## Architecture
 
 - `launcher.py` is the single entry point (`/usr/bin/stamp`): `--cli` as the first arg dispatches to `cli/main.py`, otherwise `gui/app.py`. GTK is only imported on the GUI path.
 - `core/` holds all logic and must not import GTK. `cli/` and `gui/` are thin consumers of the same `core/` functions; don't duplicate logic in either. `core/formatter.py` may use `gi.repository.UDisks`/`GLib` (D-Bus bindings), imported lazily inside functions.
 - **Privilege split** (see ARCHITECTURE.md table): enumeration via `lsblk`/`findmnt` subprocesses as the user; unmounting existing partitions via udisks2 D-Bus; mounting/unmounting the new partition via `udisksctl`; zip extract + `rsync` as the user. Only partitioning + `mkfs.vfat -F 32` runs as root, through `helper/stamp-helper` via `pkexec` (udisks2's `Block.Format()` can't force FAT32). The helper must stay minimal: one whitelisted subcommand, and it re-validates the device path, block-device check, root-disk check and label on its own, independently of `core/`. Changes to validation in `core/safety.py`/`core/formatter.py` (e.g. `_DEVICE_PATH_RE`, `sanitize_label`) should be mirrored in the helper.
-- **Two helper paths, one script:** `build-deb.sh` installs it as `/usr/lib/stamp/stamp-helper` (polkit `allow_active: yes`, so no password, and the helper refuses anything without lsblk `RM=1`) and `/usr/lib/stamp/stamp-helper-unrestricted` (`auth_admin`, used for the non-removable override). The helper picks its mode from `basename "$0"`, never from an argument. `format_device` passes `unrestricted=not device.removable`, so keep the removable criterion identical in `core/device_scanner.py` and the helper. Policy actions in `packaging/com.ugurcaneser.stamp.policy` are tied to these exact paths. Outside the installed package only the removable-only `helper/stamp-helper` exists (`_resolve_helper_path`).
+- **Two helper paths, one script:** `packaging/stage.sh` installs it as `/usr/lib/stamp/stamp-helper` (polkit `allow_active: yes`, so no password, and the helper refuses anything without lsblk `RM=1`) and `/usr/lib/stamp/stamp-helper-unrestricted` (`auth_admin`, used for the non-removable override). The helper picks its mode from `basename "$0"`, never from an argument. `format_device` passes `unrestricted=not device.removable`, so keep the removable criterion identical in `core/device_scanner.py` and the helper. Policy actions in `packaging/com.ugurcaneser.stamp.policy` are tied to these exact paths. Outside the installed package only the removable-only `helper/stamp-helper` exists (`_resolve_helper_path`).
 - `udisksctl mount` deliberately runs without `--no-user-interaction` so the non-removable override can show a polkit prompt.
 - **Safety**: `core/safety.py` blocks the disk backing `/` and any disk with a partition mounted at system paths (`/boot`, `/home`, `/var`, …) with no override. Non-removable devices are refused unless explicitly allowed (`--allow-non-removable` in the CLI, a risk checkbox in the GUI's single confirm dialog). The GUI uses one summary confirm dialog (`gui/confirm_dialog.py`); recent commits deliberately removed extra acknowledgement steps, so don't add new ones.
 - **Flow**: format → extract → mount → copy (rsync) → sync → unmount. In the GUI this runs on a background `threading.Thread` in `gui/main_window.py`; UI updates must go through `GLib.idle_add`.
@@ -74,4 +76,4 @@ The package version lives in `packaging/debian/control` (`build-deb.sh` reads it
 
 ## Out of scope
 
-Platforms other than Ubuntu, macOS and Windows. Blueprint/`.ui` files: widgets are built in Python on purpose. debhelper/dh-python: `build-deb.sh` calls `dpkg-deb --build` directly.
+Platforms other than Linux (Ubuntu/Debian, Fedora and Arch packages; Ubuntu on GNOME is the primary target), macOS and Windows. Flatpak/Snap/AppImage: they can't ship the polkit policy and root helper the Linux design relies on. Blueprint/`.ui` files: widgets are built in Python on purpose. debhelper/dh-python/rpm spec files: nfpm builds the packages from the `stage.sh` tree.

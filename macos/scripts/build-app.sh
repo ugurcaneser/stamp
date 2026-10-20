@@ -9,7 +9,7 @@
 #                         Developer ID identity; ad-hoc builds can't be notarized.
 #
 # Output: dist/macos/Stamp.app and dist/macos/Stamp-<version>.dmg
-# The version comes from packaging/debian/control so both platforms ship the same number.
+# The version comes from packaging/nfpm.yaml so both platforms ship the same number.
 
 set -euo pipefail
 
@@ -18,7 +18,7 @@ PACKAGE_DIR="$(dirname "$SCRIPT_DIR")"
 PROJECT_ROOT="$(dirname "$PACKAGE_DIR")"
 OUT_DIR="${1:-$PROJECT_ROOT/dist/macos}"
 
-VERSION="$(grep -m1 '^Version:' "$PROJECT_ROOT/packaging/debian/control" | awk '{print $2}')"
+VERSION="$(sed -n 's/^version: "\(.*\)"$/\1/p' "$PROJECT_ROOT/packaging/nfpm.yaml")"
 IDENTITY="${STAMP_SIGN_IDENTITY:--}"
 NOTARY_PROFILE="${STAMP_NOTARY_PROFILE:-}"
 

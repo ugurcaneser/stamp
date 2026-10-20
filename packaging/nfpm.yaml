@@ -1,0 +1,80 @@
+# One package description for .deb, .rpm and Arch (.pkg.tar.zst), built by
+# build-packages.sh, which runs nfpm from a temp dir holding this file,
+# postinstall.sh and the stage.sh tree in ./root. Only metadata and
+# dependency names live here. `version` is the release version for all
+# platforms.
+name: stamp
+version: "1.5.1"
+arch: all
+platform: linux
+section: utils
+priority: optional
+maintainer: Uğurcan Eser <ugurcaneser@yahoo.com>
+homepage: https://github.com/ugurcaneser/stamp
+# Kept to one line: Arch's pkgdesc is a single line and nfpm would fold a
+# long description into it.
+description: Format an SD card as FAT32 (any size) and load a zip's contents onto it
+
+# Only /usr/lib/stamp is a tree: shipping the whole staged root as one would
+# make the rpm own /usr, /usr/bin, ... which belong to the filesystem package.
+contents:
+  - src: ./root/usr/lib/stamp
+    dst: /usr/lib/stamp
+    type: tree
+  - src: ./root/usr/bin/stamp
+    dst: /usr/bin/stamp
+  - src: ./root/usr/share/applications/com.ugurcaneser.Stamp.desktop
+    dst: /usr/share/applications/com.ugurcaneser.Stamp.desktop
+  - src: ./root/usr/share/icons/hicolor/scalable/apps/com.ugurcaneser.Stamp.svg
+    dst: /usr/share/icons/hicolor/scalable/apps/com.ugurcaneser.Stamp.svg
+  - src: ./root/usr/share/polkit-1/actions/com.ugurcaneser.stamp.policy
+    dst: /usr/share/polkit-1/actions/com.ugurcaneser.stamp.policy
+  - src: ./root/usr/share/doc/stamp/README.md
+    dst: /usr/share/doc/stamp/README.md
+
+archlinux:
+  packager: Uğurcan Eser <ugurcaneser@yahoo.com>
+
+scripts:
+  postinstall: ./postinstall.sh
+
+overrides:
+  deb:
+    depends:
+      - python3 (>= 3.10)
+      - python3-gi
+      - gir1.2-gtk-4.0
+      - gir1.2-adw-1
+      - gir1.2-udisks-2.0
+      - pkexec | policykit-1
+      - polkitd | policykit-1
+      - udisks2
+      - parted
+      - dosfstools
+      - rsync
+      - util-linux
+  rpm:
+    depends:
+      - python3 >= 3.10
+      - python3-gobject
+      - gtk4
+      - libadwaita
+      - libudisks2
+      - polkit
+      - udisks2
+      - parted
+      - dosfstools
+      - rsync
+      - util-linux
+  archlinux:
+    depends:
+      - python
+      - python-gobject
+      - gtk4
+      - libadwaita
+      - polkit
+      - udisks2
+      - parted
+      - dosfstools
+      - rsync
+      - util-linux

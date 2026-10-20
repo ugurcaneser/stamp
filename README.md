@@ -5,7 +5,8 @@ FAT32 on cards larger than 32GB, which most stock GUI formatters (GParted's
 default dialog, Windows' Format tool) silently refuse or cap — then copies
 the contents of a zip file you provide onto it.
 
-Targets Ubuntu 22.04+/24.04+ on GNOME (GTK4 + libadwaita GUI, plus a `--cli`
+Targets Linux (Ubuntu 22.04+/24.04+ on GNOME first, with Debian, Fedora and
+Arch packages too; GTK4 + libadwaita GUI, plus a `--cli`
 mode for scripting), macOS 14+ (native SwiftUI app in `macos/`, see
 [macOS](#macos) below) and Windows 10/11 (native WPF app in `windows/`, see
 [Windows](#windows) below). See `STAMP_APP_SPEC.md` for the full specification
@@ -13,10 +14,24 @@ this was built from, and `ARCHITECTURE.md` for the privilege-separation design.
 
 ## Install
 
+Each release has a package for the common Linux families (Ubuntu 22.04+,
+Debian 12+, Fedora, Arch):
+
 ```sh
-./packaging/build-deb.sh          # writes dist/stamp_1.5.1_all.deb
-sudo apt install ./dist/stamp_1.5.1_all.deb
+sudo apt install ./stamp_1.5.1_all.deb          # Ubuntu / Debian
+sudo dnf install ./stamp-1.5.1-1.noarch.rpm     # Fedora
+sudo pacman -U ./stamp-1.5.1-1-any.pkg.tar.zst  # Arch
 ```
+
+To build them yourself (needs [nfpm](https://nfpm.goreleaser.com)):
+
+```sh
+./packaging/build-packages.sh     # writes all three into dist/
+./packaging/build-packages.sh dist deb   # only the .deb
+```
+
+`packaging/arch/PKGBUILD` builds the same package from the release's source
+tarball, for the AUR.
 
 ## Run
 
@@ -62,7 +77,10 @@ python3 -m venv .venv
 Pytest configuration lives in `pyproject.toml`, so tests resolve the local
 packages without a manually-set `PYTHONPATH`. GitHub Actions runs the suite on
 Python 3.10 (Ubuntu 22.04's baseline) and Python 3.12 (Ubuntu 24.04's baseline),
-checks Python and shell syntax, and verifies that the `.deb` can be built.
+checks Python and shell syntax, builds the `.deb`, `.rpm` and Arch packages,
+installs each in a Ubuntu 22.04/24.04, Debian 12, Fedora and Arch container
+to check that every declared dependency resolves, and builds the AUR
+`PKGBUILD`.
 
 `core/` has no GTK imports and is fully unit-testable without a display —
 device/lsblk parsing and safety logic are tested against mocked
@@ -173,7 +191,7 @@ Run it once on a real Windows PC with a disposable card before trusting it.
   the spec's suggested layout — Blueprint files can't be compiled/validated
   without a Linux toolchain, and programmatic construction was something
   that could actually be built and driven against a real GTK4 runtime here.
-- Full debhelper/dh-python packaging: `build-deb.sh` assembles the package
-  tree and calls `dpkg-deb --build` directly. Simpler and fully verifiable
-  locally; reasonable to upgrade to dh-python later if this is ever
-  submitted to an actual Debian/Ubuntu archive.
+- Full debhelper/dh-python or rpm spec packaging: `stage.sh` assembles the
+  file tree and nfpm wraps it as `.deb`, `.rpm` and Arch packages. Simpler
+  and fully verifiable locally; reasonable to upgrade later if this is ever
+  submitted to an actual distribution archive.

@@ -16,7 +16,7 @@
     <Product>Stamp</Product>
     <Company>Ugurcan Eser</Company>
     <Description>Format an SD card or USB drive as FAT32 and copy a zip's contents onto it.</Description>
-    <!-- build-exe.sh passes the real version from packaging/debian/control. -->
+    <!-- build-exe.sh passes the real version from packaging/nfpm.yaml. -->
     <Version>0.0.0</Version>
   </PropertyGroup>
 

@@ -36,21 +36,115 @@ jobs:
         run: python -m compileall -q launcher.py cli core gui
 
       - name: Check shell syntax
-        run: bash -n helper/stamp-helper packaging/build-deb.sh packaging/debian/postinst assets/make-icons.sh windows/scripts/build-exe.sh
+        run: bash -n helper/stamp-helper packaging/stage.sh packaging/build-packages.sh packaging/postinstall.sh packaging/arch/PKGBUILD assets/make-icons.sh windows/scripts/build-exe.sh
 
   package:
-    name: Build Debian package
+    name: Build Linux packages
     runs-on: ubuntu-latest
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Build package
-        run: ./packaging/build-deb.sh
+      - name: Install nfpm
+        run: |
+          curl -fsSLo nfpm.tar.gz https://github.com/goreleaser/nfpm/releases/download/v2.48.0/nfpm_2.48.0_Linux_x86_64.tar.gz
+          echo "6d7f9a28b2f397934403950fcbba83f598b08d02edbe79a0815b3b4897341750  nfpm.tar.gz" | sha256sum -c -
+          sudo tar -xzf nfpm.tar.gz -C /usr/local/bin nfpm
+
+      - name: Check that the PKGBUILD matches the package version
+        run: |
+          nfpm_version="$(sed -n 's/^version: "\(.*\)"$/\1/p' packaging/nfpm.yaml)"
+          pkgbuild_version="$(sed -n 's/^pkgver=//p' packaging/arch/PKGBUILD)"
+          echo "nfpm.yaml: $nfpm_version, PKGBUILD: $pkgbuild_version"
+          [ "$nfpm_version" = "$pkgbuild_version" ]
+
+      - name: Build packages
+        run: ./packaging/build-packages.sh
 
       - name: Inspect package metadata
         run: dpkg-deb --info dist/*.deb
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: stamp-linux
+          path: |
+            dist/*.deb
+            dist/*.rpm
+            dist/*.pkg.tar.zst
+
+  install:
+    name: Install on ${{ matrix.image }}
+    needs: package
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ubuntu:22.04
+            install: apt-get update && apt-get install -y ./dist/*.deb
+          - image: ubuntu:24.04
+            install: apt-get update && apt-get install -y ./dist/*.deb
+          - image: debian:12
+            install: apt-get update && apt-get install -y ./dist/*.deb
+          - image: fedora:latest
+            install: dnf install -y ./dist/*.rpm
+          - image: archlinux:latest
+            install: pacman -Syu --noconfirm && pacman -U --noconfirm ./dist/*.pkg.tar.zst
+
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: stamp-linux
+          path: dist
+
+      - name: Install package
+        run: ${{ matrix.install }}
+
+      # The GUI can't start without a display, but every typelib it and
+      # core/formatter.py load must resolve from the declared dependencies.
+      - name: Check runtime dependencies
+        run: |
+          stamp --cli --help
+          python3 -c "import gi; gi.require_version('Gtk', '4.0'); gi.require_version('Adw', '1'); gi.require_version('UDisks', '2.0'); from gi.repository import Gtk, Adw, UDisks, GLib"
+          for tool in pkexec udisksctl lsblk findmnt parted partprobe mkfs.vfat rsync; do
+            command -v "$tool" || { echo "missing: $tool"; exit 1; }
+          done
+          test -x /usr/lib/stamp/stamp-helper
+          test -x /usr/lib/stamp/stamp-helper-unrestricted
+          test -f /usr/share/polkit-1/actions/com.ugurcaneser.stamp.policy
+
+  aur:
+    name: Build the AUR PKGBUILD
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+
+    steps:
+      - name: Install build tools
+        run: pacman -Syu --noconfirm base-devel git
+
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # makepkg uses a source file that's already present instead of
+      # downloading it, so this builds the PKGBUILD against this commit.
+      # --nodeps: nothing is compiled; pacman -U pulls in the runtime depends.
+      - name: Build and install the package
+        run: |
+          git config --global --add safe.directory "$PWD"
+          pkgver="$(sed -n 's/^pkgver=//p' packaging/arch/PKGBUILD)"
+          useradd -m builder
+          install -d -o builder /tmp/aur
+          cp packaging/arch/PKGBUILD /tmp/aur/
+          git archive --prefix="stamp-$pkgver/" -o "/tmp/aur/stamp-$pkgver.tar.gz" HEAD
+          chown -R builder /tmp/aur
+          su builder -c "cd /tmp/aur && makepkg --noconfirm --nodeps"
+          pacman -U --noconfirm /tmp/aur/stamp-*.pkg.tar.zst
+          stamp --cli --help
+          test -f /usr/share/polkit-1/actions/com.ugurcaneser.stamp.policy
 
   macos:
     name: macOS app

@@ -8,7 +8,7 @@
   <!-- Each action is tied to exactly one program path via
        org.freedesktop.policykit.exec.path. The paths must match
        core/formatter.py's _INSTALLED_HELPER_PATH /
-       _INSTALLED_UNRESTRICTED_HELPER_PATH and where build-deb.sh installs
+       _INSTALLED_UNRESTRICTED_HELPER_PATH and where stage.sh installs
        helper/stamp-helper. The helper picks its mode from the path it was
        run as, so these two entries are the whole permission model. -->
 

@@ -6,7 +6,7 @@
       "Bash(python -m pytest:*)",
       "Bash(python -m compileall:*)",
       "Bash(bash -n:*)",
-      "Bash(./packaging/build-deb.sh:*)",
+      "Bash(./packaging/build-packages.sh:*)",
       "Bash(dpkg-deb --info:*)",
       "Bash(python3 launcher.py --cli list)"
     ]
