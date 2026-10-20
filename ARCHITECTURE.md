@@ -177,8 +177,9 @@ sandboxed: App Sandbox doesn't allow running `diskutil` against raw disks.
   `mkfs.vfat`/`partprobe` sequence is unverified beyond that — it mirrors
   the prototype script's validated command sequence (spec §7) but should be
   run once against a real disposable card before trusting it in anger.
-- `packaging/build-packages.sh`: CI builds the `.deb`, `.rpm` and Arch
-  packages, installs each in Ubuntu, Debian, Fedora and Arch containers and
+- `packaging/build-packages.sh`: CI builds the `.deb` and `.rpm`, installs
+  each in Ubuntu, Debian and Fedora containers (and the AUR PKGBUILD in an
+  Arch container), and
   checks that the GTK/libadwaita/UDisks typelibs and the external tools
   resolve. Containers have no polkit daemon or block devices, so the
   pkexec/polkit path itself is only verified on real machines.

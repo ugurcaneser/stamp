@@ -1,18 +1,17 @@
-# One package description for .deb, .rpm and Arch (.pkg.tar.zst), built by
+# One package description for .deb and .rpm, built by
 # build-packages.sh, which runs nfpm from a temp dir holding this file,
 # postinstall.sh and the stage.sh tree in ./root. Only metadata and
 # dependency names live here. `version` is the release version for all
 # platforms.
 name: stamp
-version: "1.5.1"
+version: "1.6.0"
 arch: all
 platform: linux
 section: utils
 priority: optional
 maintainer: Uğurcan Eser <ugurcaneser@yahoo.com>
 homepage: https://github.com/ugurcaneser/stamp
-# Kept to one line: Arch's pkgdesc is a single line and nfpm would fold a
-# long description into it.
+license: MIT
 description: Format an SD card as FAT32 (any size) and load a zip's contents onto it
 
 # Only /usr/lib/stamp is a tree: shipping the whole staged root as one would
@@ -31,9 +30,14 @@ contents:
     dst: /usr/share/polkit-1/actions/com.ugurcaneser.stamp.policy
   - src: ./root/usr/share/doc/stamp/README.md
     dst: /usr/share/doc/stamp/README.md
-
-archlinux:
-  packager: Uğurcan Eser <ugurcaneser@yahoo.com>
+  # Each family's own license location (Debian's minimal images even drop
+  # everything else under /usr/share/doc).
+  - src: ./root/usr/share/doc/stamp/LICENSE
+    dst: /usr/share/doc/stamp/copyright
+    packager: deb
+  - src: ./root/usr/share/doc/stamp/LICENSE
+    dst: /usr/share/licenses/stamp/LICENSE
+    packager: rpm
 
 scripts:
   postinstall: ./postinstall.sh
@@ -62,18 +66,6 @@ overrides:
       - gtk4
       - libadwaita
       - libudisks2
-      - polkit
-      - udisks2
-      - parted
-      - dosfstools
-      - rsync
-      - util-linux
-  archlinux:
-    depends:
-      - python
-      - python-gobject
-      - gtk4
-      - libadwaita
       - polkit
       - udisks2
       - parted

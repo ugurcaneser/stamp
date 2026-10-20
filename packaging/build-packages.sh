@@ -1,7 +1,8 @@
 #!/bin/bash
 # Build the Linux packages into OUTPUT_DIR (default: dist/):
-#   stamp_<version>_all.deb, stamp-<version>-1.noarch.rpm,
-#   stamp-<version>-1-any.pkg.tar.zst
+#   stamp_<version>_all.deb and stamp-<version>-1.noarch.rpm
+# Arch users get the AUR package stamp-sd (packaging/arch/PKGBUILD) instead:
+# an Arch package named "stamp" would collide with the unrelated AUR "stamp".
 # Pass package formats after the output dir to build only some of them, e.g.
 # `build-packages.sh dist deb`. Needs nfpm (https://nfpm.goreleaser.com).
 
@@ -12,7 +13,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 OUTPUT_DIR="$(mkdir -p "${1:-$PROJECT_ROOT/dist}" && cd "${1:-$PROJECT_ROOT/dist}" && pwd)"
 shift || true
 FORMATS=("$@")
-[ ${#FORMATS[@]} -gt 0 ] || FORMATS=(deb rpm archlinux)
+[ ${#FORMATS[@]} -gt 0 ] || FORMATS=(deb rpm)
 
 command -v nfpm >/dev/null || { echo "nfpm is not installed (https://nfpm.goreleaser.com)" >&2; exit 1; }
 
@@ -29,7 +30,6 @@ for format in "${FORMATS[@]}"; do
     case "$format" in
         deb) target="stamp_${VERSION}_all.deb" ;;
         rpm) target="stamp-${VERSION}-1.noarch.rpm" ;;
-        archlinux) target="stamp-${VERSION}-1-any.pkg.tar.zst" ;;
         *) echo "unknown package format: $format" >&2; exit 1 ;;
     esac
     nfpm package --config nfpm.yaml --packager "$format" --target "$OUTPUT_DIR/$target" >/dev/null

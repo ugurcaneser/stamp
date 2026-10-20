@@ -1,20 +1,26 @@
 # Maintainer: Uğurcan Eser <ugurcaneser@yahoo.com>
 #
 # AUR package built from the release's source tarball. The file layout comes
-# from packaging/stage.sh, the same script the .deb/.rpm/Arch release assets
-# are built from; keep depends in step with packaging/nfpm.yaml.
-pkgname=stamp
-pkgver=1.5.1
+# from packaging/stage.sh, the same script the .deb/.rpm release assets are
+# built from; keep depends in step with packaging/nfpm.yaml. Named stamp-sd
+# because the AUR's "stamp" is an unrelated GNOME app that also ships
+# /usr/bin/stamp.
+pkgname=stamp-sd
+_name=stamp
+pkgver=1.6.0
 pkgrel=1
-pkgdesc="Format an SD card as FAT32 (any size) and load a zip's contents onto it"
+pkgdesc="Format an SD card or USB drive as FAT32 (any size) and copy a zip's contents onto it"
 arch=('any')
 url="https://github.com/ugurcaneser/stamp"
-license=('LicenseRef-unknown')
+license=('MIT')
 depends=('python' 'python-gobject' 'gtk4' 'libadwaita' 'polkit' 'udisks2'
          'parted' 'dosfstools' 'rsync' 'util-linux')
-source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+conflicts=('stamp')
+source=("$_name-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
 sha256sums=('SKIP')
 
 package() {
-    "$srcdir/$pkgname-$pkgver/packaging/stage.sh" "$pkgdir"
+    cd "$srcdir/$_name-$pkgver"
+    packaging/stage.sh "$pkgdir"
+    install -Dm 0644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }

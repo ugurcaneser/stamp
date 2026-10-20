@@ -12,7 +12,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/pytest tests/test_safety.py::test_name   # single test
 python -m compileall -q launcher.py cli core gui   # CI syntax check
 bash -n helper/stamp-helper packaging/stage.sh packaging/build-packages.sh packaging/postinstall.sh
-./packaging/build-packages.sh                      # -> dist/ .deb + .rpm + Arch .pkg.tar.zst (needs nfpm)
+./packaging/build-packages.sh                      # -> dist/ .deb + .rpm (needs nfpm)
 python3 launcher.py --cli list                     # run CLI from source; no args = GUI
 ```
 
@@ -33,11 +33,11 @@ STAMP_REQUIRE_FAT_TOOLS=1 dotnet test windows/tests/StampCore.Tests       # fail
 ./windows/scripts/build-exe.sh                                            # dist/windows/Stamp-<version>-win-x64.exe; Windows only (no WindowsDesktop SDK elsewhere)
 ```
 
-CI (`.github/workflows/ci.yml`) only runs when started by hand (`workflow_dispatch`: `gh workflow run ci.yml`), not on push, to save Actions minutes; verify locally first. It runs pytest on Python 3.10 and 3.12, the compile/`bash -n` checks, the `.deb`/`.rpm`/Arch package build (artifact `stamp-linux`) plus an install check of each in Ubuntu 22.04/24.04, Debian 12, Fedora and Arch containers and a `makepkg` of the AUR PKGBUILD, on macOS `swift test` plus an ad-hoc-signed app/DMG build, the Windows core tests on Linux with dosfstools/mtools, and on Windows the tests plus the `.exe` build (uploaded as the `stamp-windows` artifact). Keep code compatible with Python 3.10, the Swift package at tools 5.10 / macOS 14, and .NET 8.
+CI (`.github/workflows/ci.yml`) only runs when started by hand (`workflow_dispatch`: `gh workflow run ci.yml`), not on push, to save Actions minutes; verify locally first. It runs pytest on Python 3.10 and 3.12, the compile/`bash -n` checks, the `.deb`/`.rpm` build (artifact `stamp-linux`) plus an install check of each in Ubuntu 22.04/24.04, Debian 12 and Fedora containers and a `makepkg` + install of the AUR PKGBUILD in Arch, on macOS `swift test` plus an ad-hoc-signed app/DMG build, the Windows core tests on Linux with dosfstools/mtools, and on Windows the tests plus the `.exe` build (uploaded as the `stamp-windows` artifact). Keep code compatible with Python 3.10, the Swift package at tools 5.10 / macOS 14, and .NET 8.
 
 The app icon's single source is `assets/stamp-icon.svg`; `assets/make-icons.sh` regenerates the committed `macos/Resources/AppIcon.icns` and `windows/src/Stamp/Stamp.ico`/`Logo.png` (needs `rsvg-convert`), and `packaging/stage.sh` installs the SVG as the hicolor icon. The GTK app ID, desktop file and icon name are all `com.ugurcaneser.Stamp` so GNOME can match the window to them; the polkit action IDs use `com.ugurcaneser.stamp`.
 
-Linux packaging: `packaging/stage.sh DESTDIR` is the single description of the installed file tree; `build-packages.sh` stages it and runs nfpm with `packaging/nfpm.yaml` (metadata plus per-format dependency names) to produce the `.deb`, `.rpm` and Arch package, and `packaging/arch/PKGBUILD` (AUR) calls `stage.sh` from the release tarball. Keep the dependency lists in `nfpm.yaml` and the PKGBUILD in step.
+Linux packaging: `packaging/stage.sh DESTDIR` is the single description of the installed file tree; `build-packages.sh` stages it and runs nfpm with `packaging/nfpm.yaml` (metadata plus per-format dependency names) to produce the `.deb` and `.rpm`, and `packaging/arch/PKGBUILD` calls `stage.sh` from the release tarball. Arch is served only through the AUR package `stamp-sd` (the AUR's `stamp` is an unrelated GNOME app, so an Arch package named `stamp` would be "upgraded" to it by AUR helpers); `packaging/arch/.SRCINFO` must be regenerated (`makepkg --printsrcinfo`) whenever the PKGBUILD changes. Keep the dependency lists in `nfpm.yaml` and the PKGBUILD in step.
 
 The release version lives in `packaging/nfpm.yaml` (`version:`); `build-packages.sh`, `macos/scripts/build-app.sh` and `windows/scripts/build-exe.sh` all read it from there. `pkgver` in `packaging/arch/PKGBUILD` (CI checks it matches) and the README's install examples also hardcode it.
 
@@ -76,4 +76,4 @@ The release version lives in `packaging/nfpm.yaml` (`version:`); `build-packages
 
 ## Out of scope
 
-Platforms other than Linux (Ubuntu/Debian, Fedora and Arch packages; Ubuntu on GNOME is the primary target), macOS and Windows. Flatpak/Snap/AppImage: they can't ship the polkit policy and root helper the Linux design relies on. Blueprint/`.ui` files: widgets are built in Python on purpose. debhelper/dh-python/rpm spec files: nfpm builds the packages from the `stage.sh` tree.
+Platforms other than Linux (Ubuntu/Debian and Fedora packages, Arch via the AUR; Ubuntu on GNOME is the primary target), macOS and Windows. Flatpak/Snap/AppImage: they can't ship the polkit policy and root helper the Linux design relies on. Blueprint/`.ui` files: widgets are built in Python on purpose. debhelper/dh-python/rpm spec files: nfpm builds the packages from the `stage.sh` tree.

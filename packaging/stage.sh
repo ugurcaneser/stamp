@@ -2,8 +2,8 @@
 # Install Stamp's file tree under DESTDIR.
 #
 # The single description of what goes where: build-packages.sh stages into a
-# temp dir and hands the tree to nfpm for .deb/.rpm/Arch, and the AUR
-# PKGBUILD calls this with "$pkgdir". Pure Python + shell, nothing compiled.
+# temp dir and hands the tree to nfpm for .deb/.rpm, and the AUR PKGBUILD
+# (stamp-sd) calls this with "$pkgdir". Pure Python + shell, nothing compiled.
 
 set -euo pipefail
 
@@ -45,3 +45,4 @@ put 0644 "$SCRIPT_DIR/com.ugurcaneser.Stamp.desktop" "$DESTDIR/usr/share/applica
 put 0644 "$PROJECT_ROOT/assets/stamp-icon.svg" "$DESTDIR/usr/share/icons/hicolor/scalable/apps/com.ugurcaneser.Stamp.svg"
 put 0644 "$SCRIPT_DIR/com.ugurcaneser.stamp.policy" "$DESTDIR/usr/share/polkit-1/actions/com.ugurcaneser.stamp.policy"
 put 0644 "$PROJECT_ROOT/README.md" "$DESTDIR/usr/share/doc/stamp/README.md"
+put 0644 "$PROJECT_ROOT/LICENSE" "$DESTDIR/usr/share/doc/stamp/LICENSE"

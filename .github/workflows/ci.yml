@@ -73,7 +73,6 @@ jobs:
           path: |
             dist/*.deb
             dist/*.rpm
-            dist/*.pkg.tar.zst
 
   install:
     name: Install on ${{ matrix.image }}
@@ -92,8 +91,6 @@ jobs:
             install: apt-get update && apt-get install -y ./dist/*.deb
           - image: fedora:latest
             install: dnf install -y ./dist/*.rpm
-          - image: archlinux:latest
-            install: pacman -Syu --noconfirm && pacman -U --noconfirm ./dist/*.pkg.tar.zst
 
     steps:
       - name: Download packages
@@ -133,6 +130,7 @@ jobs:
       # makepkg uses a source file that's already present instead of
       # downloading it, so this builds the PKGBUILD against this commit.
       # --nodeps: nothing is compiled; pacman -U pulls in the runtime depends.
+      # --skipchecksums: sha256sums is the GitHub tag tarball, not git archive.
       - name: Build and install the package
         run: |
           git config --global --add safe.directory "$PWD"
@@ -142,10 +140,12 @@ jobs:
           cp packaging/arch/PKGBUILD /tmp/aur/
           git archive --prefix="stamp-$pkgver/" -o "/tmp/aur/stamp-$pkgver.tar.gz" HEAD
           chown -R builder /tmp/aur
-          su builder -c "cd /tmp/aur && makepkg --noconfirm --nodeps"
-          pacman -U --noconfirm /tmp/aur/stamp-*.pkg.tar.zst
+          su builder -c "cd /tmp/aur && makepkg --noconfirm --nodeps --skipchecksums"
+          pacman -U --noconfirm /tmp/aur/stamp-sd-*.pkg.tar.zst
           stamp --cli --help
+          python -c "import gi; gi.require_version('Gtk', '4.0'); gi.require_version('Adw', '1'); gi.require_version('UDisks', '2.0'); from gi.repository import Gtk, Adw, UDisks, GLib"
           test -f /usr/share/polkit-1/actions/com.ugurcaneser.stamp.policy
+          test -f /usr/share/licenses/stamp-sd/LICENSE
 
   macos:
     name: macOS app

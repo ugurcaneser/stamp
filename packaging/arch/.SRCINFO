@@ -1,0 +1,22 @@
+pkgbase = stamp-sd
+	pkgdesc = Format an SD card or USB drive as FAT32 (any size) and copy a zip's contents onto it
+	pkgver = 1.6.0
+	pkgrel = 1
+	url = https://github.com/ugurcaneser/stamp
+	arch = any
+	license = MIT
+	depends = python
+	depends = python-gobject
+	depends = gtk4
+	depends = libadwaita
+	depends = polkit
+	depends = udisks2
+	depends = parted
+	depends = dosfstools
+	depends = rsync
+	depends = util-linux
+	conflicts = stamp
+	source = stamp-1.6.0.tar.gz::https://github.com/ugurcaneser/stamp/archive/refs/tags/v1.6.0.tar.gz
+	sha256sums = SKIP
+
+pkgname = stamp-sd
