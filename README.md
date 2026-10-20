@@ -75,7 +75,7 @@ python3 -m venv .venv
 ```
 
 Pytest configuration lives in `pyproject.toml`, so tests resolve the local
-packages without a manually-set `PYTHONPATH`. GitHub Actions runs the suite on
+packages without a manually-set `PYTHONPATH`. GitHub Actions (started by hand, `gh workflow run ci.yml`) runs the suite on
 Python 3.10 (Ubuntu 22.04's baseline) and Python 3.12 (Ubuntu 24.04's baseline),
 checks Python and shell syntax, builds the `.deb`, `.rpm` and Arch packages,
 installs each in a Ubuntu 22.04/24.04, Debian 12, Fedora and Arch container

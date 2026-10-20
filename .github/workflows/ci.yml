@@ -1,8 +1,9 @@
 name: CI
 
+# Manual only (Actions tab or `gh workflow run ci.yml`): pushes don't start a
+# run, so verify locally first and spend Actions minutes deliberately.
 on:
-  push:
-  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
